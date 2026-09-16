@@ -1,0 +1,37 @@
+[1] Know about all varieties of "word wheel" puzzles.
+Build a system for generating Word Wheel puzzles.
+Accept a word or phrase containing 7, 8, or 9 characters.
+Generate puzzles based on the supplied word or phrase.
+Generate and maintain the corresponding answers.
+Design the application so that it can support languages other than English.
+
+[2] support the configurations / variations
+
+7,8 or 9
+
+
+clockwise
+anticlockwise
+random
+
+whether you have a central character or not.
+
+whether you are showing all the chars or hiding (1 or 2 or 3) characters
+
+[3] Generating for different languages
+
+[4] Saving pre-created / generated puzzles
+
+[5] Letting the visitors play the puzzle
+
+[6] Doing batch processing (give 100 words, generate 100 puzzles in one go]
+
+[7] Convert those puzzles into a PDF book
+
+[8] Host it on bluehost so that public/visitors can access the puzzles and play those.
+
+[9] Puzzle in a day - every day, display a random puzzle to the visitors
+
+[10] Tech Stack: HTML/CSS/JS/JQuery/BootStrap;  PHP; MySQL
+
+[11] TBD
