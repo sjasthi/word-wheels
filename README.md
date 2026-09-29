@@ -106,7 +106,7 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 
 ## Team
 
-Course: ICS 499 - Capstone Project
-Instructor: Siva Jasthi
-Team: Austin Nguyen, Henry Nguyen
-Iteration: FP3 | September 29th, 2026
+- **Course:** ICS 499 - Capstone Project
+- **Instructor:** Siva Jasthi
+- **Team:** Austin Nguyen, Henry Nguyen
+- **Iteration:** FP3 | September 29th, 2026
