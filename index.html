@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Word Wheel Mockup</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"
+    />
+    <style>
+      :root {
+        --wheel-size: min(340px, 82vw);
+      }
+
+      .wheel {
+        position: relative;
+        width: var(--wheel-size);
+        aspect-ratio: 1;
+        margin: 0 auto;
+      }
+      .wheel svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .wheel svg circle {
+        fill: #f8f9fa;
+        stroke: #adb5bd;
+        stroke-width: 0.6;
+      }
+      .wheel svg line {
+        stroke: #ced4da;
+        stroke-width: 0.5;
+      }
+
+      .tile {
+        position: absolute;
+        width: 17%;
+        aspect-ratio: 1;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #0d6efd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: calc(var(--wheel-size) * 0.08);
+        text-transform: uppercase;
+        user-select: none;
+      }
+      .tile.hub {
+        width: 20%;
+        background: #0d6efd;
+        color: #fff;
+      }
+      .tile.blank {
+        border-style: dashed;
+        color: #adb5bd;
+      }
+      .tile.revealed {
+        color: #198754;
+        border-color: #198754;
+        border-style: solid;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="container py-4" style="max-width: 900px">
+      <h1 class="h3 mb-1">Word Wheel</h1>
+      <p class="text-muted mb-4">
+        Start at the center, then read around the wheel clockwise or
+        anticlockwise.
+      </p>
+
+      <div class="row g-4">
+        <!-- Creator panel -->
+        <div class="col-md-5">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h2 class="h6 text-uppercase text-muted mb-3">Create a puzzle</h2>
+              <form id="createForm" novalidate>
+                <label for="wordInput" class="form-label"
+                  >Word (7–9 letters)</label
+                >
+                <input
+                  id="wordInput"
+                  class="form-control"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="e.g. elephant"
+                />
+                <div id="wordFeedback" class="invalid-feedback"></div>
+
+                <div class="mt-3">
+                  <span class="form-label d-block">Direction</span>
+                  <div class="form-check form-check-inline">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="direction"
+                      id="dirCw"
+                      value="cw"
+                      checked
+                    />
+                    <label class="form-check-label" for="dirCw"
+                      >Clockwise</label
+                    >
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="direction"
+                      id="dirCcw"
+                      value="ccw"
+                    />
+                    <label class="form-check-label" for="dirCcw"
+                      >Anticlockwise</label
+                    >
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  <label for="hiddenSelect" class="form-label"
+                    >Hidden letters (difficulty)</label
+                  >
+                  <select id="hiddenSelect" class="form-select">
+                    <option value="0">0 – show all</option>
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </div>
+
+                <button class="btn btn-primary w-100 mt-4" type="submit">
+                  Generate wheel
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Player panel -->
+        <div class="col-md-7">
+          <div class="card shadow-sm">
+            <div class="card-body text-center">
+              <p id="emptyState" class="text-muted my-5">
+                Enter a word to generate a wheel.
+              </p>
+
+              <div id="puzzleArea" class="d-none">
+                <div id="wheel" class="wheel">
+                  <svg viewBox="0 0 100 100" aria-hidden="true"></svg>
+                </div>
+
+                <form
+                  id="guessForm"
+                  class="mt-4 mx-auto"
+                  style="max-width: 340px"
+                  novalidate
+                >
+                  <div class="input-group">
+                    <input
+                      id="guessInput"
+                      class="form-control"
+                      autocomplete="off"
+                      spellcheck="false"
+                      placeholder="Type the word"
+                      aria-label="Your answer"
+                    />
+                    <button class="btn btn-success" type="submit">Check</button>
+                  </div>
+                </form>
+
+                <div class="mt-3 d-flex gap-2 justify-content-center">
+                  <button
+                    id="revealBtn"
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                  >
+                    Reveal
+                  </button>
+                  <button
+                    id="relayoutBtn"
+                    class="btn btn-sm btn-outline-primary"
+                    type="button"
+                  >
+                    New layout
+                  </button>
+                </div>
+
+                <div
+                  id="result"
+                  class="mt-3"
+                  role="status"
+                  aria-live="polite"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
