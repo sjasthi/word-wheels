@@ -71,8 +71,8 @@
     <div class="container py-4" style="max-width: 900px">
       <h1 class="h3 mb-1">Word Wheel</h1>
       <p class="text-muted mb-4">
-        Start at the center, then read around the wheel clockwise or
-        anticlockwise.
+        Read the wheel sequentially clockwise or anticlockwise, starting at the
+        center when selected.
       </p>
 
       <div class="row g-4">
@@ -124,12 +124,37 @@
                 </div>
 
                 <div class="mt-3">
+                  <span class="form-label d-block">Central character</span>
+                  <div class="form-check form-check-inline">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="centralCharacter"
+                      id="centralYes"
+                      value="yes"
+                      checked
+                    />
+                    <label class="form-check-label" for="centralYes">Yes</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="centralCharacter"
+                      id="centralNo"
+                      value="no"
+                    />
+                    <label class="form-check-label" for="centralNo">No</label>
+                  </div>
+                </div>
+
+                <div class="mt-3">
                   <label for="hiddenSelect" class="form-label"
                     >Hidden letters (difficulty)</label
                   >
                   <select id="hiddenSelect" class="form-select">
-                    <option value="0">0 – show all</option>
-                    <option value="1" selected>1</option>
+                    <option value="0" selected>0 – show all</option>
+                    <option value="1">1</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
                   </select>

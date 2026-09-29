@@ -25,27 +25,31 @@ $(function () {
     return arr;
   }
 
-  let settings = null; // { chars, direction, hiddenCount }
+  let settings = null; // { chars, direction, centralCharacter, hiddenCount }
   let puzzle = null; // settings + { startSlot, hidden:Set, solved }
 
-  // chars[0] is the hub; chars[1..n-1] go around the ring in order.
   function buildPuzzle(s) {
-    const ringSize = s.chars.length - 1;
-    const ringIndexes = Array.from({ length: ringSize }, (_, i) => i + 1);
+    const ringSize = s.centralCharacter ? s.chars.length - 1 : s.chars.length;
+    const ringIndexes = s.centralCharacter
+      ? Array.from({ length: ringSize }, (_, i) => i + 1)
+      : Array.from({ length: ringSize }, (_, i) => i);
     return {
       ...s,
-      startSlot: Math.floor(Math.random() * ringSize), // where the 2nd letter lands
+      startSlot: Math.floor(Math.random() * ringSize), // where the first ring letter lands
       hidden: new Set(shuffle(ringIndexes).slice(0, s.hiddenCount)),
       solved: false,
     };
   }
 
   function tilePosition(charIndex) {
-    if (charIndex === 0) return { x: 50, y: 50 };
-    const ringSize = puzzle.chars.length - 1;
+    if (puzzle.centralCharacter && charIndex === 0) return { x: 50, y: 50 };
+    const ringSize = puzzle.centralCharacter
+      ? puzzle.chars.length - 1
+      : puzzle.chars.length;
     const step = puzzle.direction === "cw" ? 1 : -1;
+    const ringIndex = puzzle.centralCharacter ? charIndex - 1 : charIndex;
     const slot =
-      (((puzzle.startSlot + step * (charIndex - 1)) % ringSize) + ringSize) %
+      (((puzzle.startSlot + step * ringIndex) % ringSize) + ringSize) %
       ringSize;
     const angle = ((-90 + (slot * 360) / ringSize) * Math.PI) / 180; // slot 0 = top
     return {
@@ -62,11 +66,13 @@ $(function () {
 
     puzzle.chars.forEach((ch, i) => {
       const { x, y } = tilePosition(i);
-      if (i > 0) svg += `<line x1="50" y1="50" x2="${x}" y2="${y}"></line>`;
+      if (puzzle.centralCharacter && i > 0) {
+        svg += `<line x1="50" y1="50" x2="${x}" y2="${y}"></line>`;
+      }
 
       const isHidden = puzzle.hidden.has(i) && !puzzle.solved;
       const $tile = $('<div class="tile"></div>')
-        .toggleClass("hub", i === 0)
+        .toggleClass("hub", puzzle.centralCharacter && i === 0)
         .toggleClass("blank", isHidden)
         .toggleClass("revealed", puzzle.hidden.has(i) && puzzle.solved)
         .css({ left: x + "%", top: y + "%" })
@@ -119,6 +125,8 @@ $(function () {
     settings = {
       chars: toChars(raw.trim()),
       direction: $('input[name="direction"]:checked').val(),
+      centralCharacter:
+        $('input[name="centralCharacter"]:checked').val() === "yes",
       hiddenCount: parseInt($("#hiddenSelect").val(), 10),
     };
     startPuzzle();
