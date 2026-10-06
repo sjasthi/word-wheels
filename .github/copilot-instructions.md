@@ -48,6 +48,9 @@ The puzzle model and UI should support:
 - A configurable center character: shown or omitted.
 - Full visibility or 1, 2, or 3 hidden characters.
 - A randomized starting position for the outer ring.
+- When random layout is selected with a center character, the first character
+  of the target word must always remain the center character; only the
+  remaining characters are shuffled around the outer ring.
 - Regenerating a new layout for the same target word without requiring re-entry.
 - A language associated with each puzzle.
 

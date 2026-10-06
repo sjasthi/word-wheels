@@ -26,7 +26,7 @@ $(function () {
   }
 
   let settings = null; // { chars, direction, centralCharacter, hiddenCount }
-  let puzzle = null; // settings + { startSlot, hidden:Set, solved }
+  let puzzle = null; // settings + { startSlot, ringOrder, hidden:Set, solved }
 
   function buildPuzzle(s) {
     const ringSize = s.centralCharacter ? s.chars.length - 1 : s.chars.length;
@@ -36,7 +36,9 @@ $(function () {
     return {
       ...s,
       startSlot: Math.floor(Math.random() * ringSize), // where the first ring letter lands
-      hidden: new Set(shuffle(ringIndexes).slice(0, s.hiddenCount)),
+      ringOrder:
+        s.direction === "random" ? shuffle([...ringIndexes]) : ringIndexes,
+      hidden: new Set(shuffle([...ringIndexes]).slice(0, s.hiddenCount)),
       solved: false,
     };
   }
@@ -46,8 +48,12 @@ $(function () {
     const ringSize = puzzle.centralCharacter
       ? puzzle.chars.length - 1
       : puzzle.chars.length;
-    const step = puzzle.direction === "cw" ? 1 : -1;
-    const ringIndex = puzzle.centralCharacter ? charIndex - 1 : charIndex;
+    const step = puzzle.direction === "ccw" ? -1 : 1;
+    const sequentialIndex = puzzle.centralCharacter ? charIndex - 1 : charIndex;
+    const ringIndex =
+      puzzle.direction === "random"
+        ? puzzle.ringOrder.indexOf(charIndex)
+        : sequentialIndex;
     const slot =
       (((puzzle.startSlot + step * ringIndex) % ringSize) + ringSize) %
       ringSize;
