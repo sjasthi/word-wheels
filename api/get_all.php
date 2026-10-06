@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// Word Wheel — Get All Puzzles Endpoint (Admin)
+// Word Wheel — Get All Puzzles Endpoint
 // ============================================================
 // Method:  GET
 // Expects: optional ?status=draft|published
@@ -8,20 +8,12 @@
 //       or { success: false, error: <message> }
 // ============================================================
 
-session_start();
 require_once 'db.php';
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed.']);
-    exit;
-}
-
-// Admin only endpoint
-if (empty($_SESSION['admin'])) {
-    http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Unauthorised.']);
     exit;
 }
 
