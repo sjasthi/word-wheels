@@ -12,18 +12,19 @@ This is an active capstone project. The current build is a functional frontend p
 
 ### What's working
 - Word input and validation (7–9 characters, letters only, no spaces)
-- Word wheel generation with the first letter as the center hub
-- Configurable direction — clockwise or anticlockwise
+- Word wheel generation with an optional first-letter center hub
+- Configurable direction — clockwise, anticlockwise, or random
+- Center character toggle — when enabled, the first character remains in the
+  center, including for random layouts
 - Difficulty setting — hide 0, 1, 2, or 3 letters from the wheel
 - Randomized starting position for outer ring letters each time a puzzle is generated
+- Random layout — shuffles outer-ring characters while preserving the answer
 - "New layout" button re-randomizes letter positions without re-entering the word
 - Guess input with correct/incorrect feedback
 - Reveal button — shows the full answer and highlights previously hidden letters in green
 - Multilanguage support — correctly handles non-Latin scripts including Japanese, Chinese, Korean, and other Unicode character sets via `Intl.Segmenter`
 
 ### Not yet implemented
-- Center letter toggle (on/off) — center letter is currently always on
-- Randomized letter order option (currently sequential from input word)
 - Database persistence — puzzles are not saved between sessions
 - Admin interface for managing saved puzzles
 - Daily puzzle feature
@@ -63,8 +64,9 @@ That's it. No dependencies to install — Bootstrap and jQuery are loaded from C
 ## How to Use
 
 1. Enter a word between 7 and 9 letters in the **Create a puzzle** panel
-2. Select a direction — clockwise or anticlockwise
-3. Choose how many letters to hide (0 = show all, up to 3 for higher difficulty)
+2. Select a direction — clockwise, anticlockwise, or random
+   (with a center character, random keeps the first character in the center)
+3. Choose whether to show a center character and how many letters to hide
 4. Click **Generate wheel**
 5. The wheel appears in the right panel — type your guess and click **Check**
 6. Use **New layout** to re-randomize letter positions for the same word
@@ -85,7 +87,7 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 | Iteration | Goal |
 |---|---|
 | FP3 (current) | Core puzzle engine, wheel display, configurations, guess validation |
-| FP4 | Remaining configurations (center letter toggle, randomized order); basic UI improvements |
+| FP4 | Basic UI improvements and configuration refinements |
 | FP5 | Database layer — MySQL schema, puzzle persistence, admin interface |
 | FP6 | Daily puzzle feature; playable puzzle improvements |
 | FP7 | Batch processing (up to 100 words); multilanguage word pool groundwork |
@@ -99,7 +101,8 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 
 - Puzzles are not saved — refreshing the page loses the current puzzle
 - No server-side word validation — the app trusts the user to enter a real word
-- Center letter is always the first character of the input word (toggle coming in FP4)
+- When enabled, the center letter is always the first character of the input
+  word, including in random layouts
 - Single word input only — phrases with spaces are not currently supported
 
 ---
