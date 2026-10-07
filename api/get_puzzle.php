@@ -34,7 +34,7 @@ try {
         SELECT id, word, arrangement, direction, hidden_count,
                center_letter, language, status, scheduled_date, created_date
         FROM puzzles
-        WHERE id = ? AND status = 'published'
+        WHERE id = ?
     ");
     $stmt->execute([$id]);
     $puzzle = $stmt->fetch();

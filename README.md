@@ -23,11 +23,12 @@ This is an active capstone project. The current build is a functional frontend p
 - Guess input with correct/incorrect feedback
 - Reveal button — shows the full answer and highlights previously hidden letters in green
 - Multilanguage support — correctly handles non-Latin scripts including Japanese, Chinese, Korean, and other Unicode character sets via `Intl.Segmenter`
+- MySQL schema and PHP API for saving, listing, loading, updating, and deleting puzzles
+- **Save puzzle** button and a **Saved puzzles** panel for reloading saved puzzles (requires PHP/MySQL)
+- Admin login and dashboard for publishing, scheduling, and deleting puzzles
 
 ### Not yet implemented
-- Database persistence — puzzles are not saved between sessions
-- Admin interface for managing saved puzzles
-- Daily puzzle feature
+- Daily puzzle player view (the `api/get_daily.php` endpoint exists)
 - Batch puzzle generation
 - PDF export
 - Bluehost deployment
@@ -59,6 +60,8 @@ git clone https://github.com/sjasthi/word-wheels.git
 
 That's it. No dependencies to install — Bootstrap and jQuery are loaded from CDN.
 
+To use saving and loading, serve the project folder with PHP (for example from XAMPP's `htdocs`), import `sql/wordwheel_schema.sql` into MySQL, and set the credentials in `api/db.php`.
+
 ---
 
 ## How to Use
@@ -71,6 +74,8 @@ That's it. No dependencies to install — Bootstrap and jQuery are loaded from C
 5. The wheel appears in the right panel — type your guess and click **Check**
 6. Use **New layout** to re-randomize letter positions for the same word
 7. Use **Reveal** to show the answer if stuck
+8. Use **Save puzzle** to store the current puzzle
+9. Click **Load saved puzzles** and pick one to play it
 
 ---
 
@@ -99,7 +104,9 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 
 ## Known Limitations
 
-- Puzzles are not saved — refreshing the page loses the current puzzle
+- Unsaved puzzles are lost on refresh; saving and loading need the PHP/MySQL backend
+- No admin/visitor privileges yet — anyone can save and load puzzles (planned for a later iteration)
+- Saved puzzles are always tagged with language `en` (no language picker yet)
 - No server-side word validation — the app trusts the user to enter a real word
 - When enabled, the center letter is always the first character of the input
   word, including in random layouts
