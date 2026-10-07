@@ -80,6 +80,56 @@ When implementing roadmap work, keep responsibilities separated:
 
 Keep admin operations and visitor operations distinct in authorization and in UI. Never trust client-side validation alone once PHP/MySQL persistence is introduced; repeat validation and authorization checks on the server.
 
+## Repository layout
+
+- `index.html` + `script.js` — the puzzle creator/player page (Bootstrap 5 cards, jQuery). Includes the **Save puzzle** button (player panel) and the **Saved puzzles** card (left column, below the creator).
+- `api/` — JSON endpoints built on PDO. `db.php` exposes `get_db()` (utf8mb4, exceptions, `FETCH_ASSOC`, real prepared statements).
+- `admin/` — session-protected admin pages (`login.php`, `dashboard.php`, `logout.php`) that list, publish/unpublish, schedule, and delete puzzles through the API.
+- `sql/wordwheel_schema.sql` — MySQL schema for `users` and `puzzles`, plus a default admin seed.
+
+The page must be served by PHP (for example XAMPP or Bluehost) for the save/load features to work. Opening `index.html` from disk only supports the offline generator.
+
+## Frontend puzzle engine contract
+
+`script.js` keeps all state inside one jQuery ready closure:
+
+- `settings = { chars, direction, centralCharacter, hiddenCount }` is the puzzle definition. `chars` is the target word's graphemes **in answer order**.
+- `buildPuzzle(settings)` derives the per-render layout (`startSlot`, `ringOrder`, `hidden`, `solved`). `startPuzzle()` builds and renders from `settings`. `render()` draws the wheel. `showResult(type, message)` writes a Bootstrap alert into `#result`.
+- Treat `buildPuzzle`, `startPuzzle`, `render`, and `showResult` as stable. Add features around them rather than changing them.
+- To show any puzzle, including one loaded from the database, set `settings` and call `startPuzzle()`.
+- `#result` sits inside `#puzzleArea`, which stays hidden until a puzzle exists. Messages that can appear before then, such as the saved-puzzles panel status, need their own `role="status"` container.
+
+## Puzzle API
+
+Every endpoint returns JSON shaped as `{ success: true, ... }` or `{ success: false, error }` with a matching 4xx/5xx status. The endpoints do not send a `Content-Type` header, so jQuery calls must set `dataType: "json"`. Error handlers should read `error` from `xhr.responseJSON` and fall back to `JSON.parse(xhr.responseText)`. Use relative URLs (`api/...` from the root page, `../api/...` from `admin/`).
+
+| Endpoint | Method | Input | Success payload |
+|---|---|---|---|
+| `api/save_puzzle.php` | POST JSON | `word, arrangement, direction, hidden_count, center_letter, language` | `id` |
+| `api/get_all.php` | GET | optional `?status=draft\|published` | `puzzles[]` (`id, word, direction, hidden_count, center_letter, language, status, scheduled_date, created_date`; no arrangement) |
+| `api/get_puzzle.php` | GET | `?id=` | `puzzle` with decoded `arrangement` array; any status (404 if the id doesn't exist) |
+| `api/get_daily.php` | GET | none | today's published, scheduled `puzzle` |
+| `api/update_puzzle.php` | POST JSON | `id` + `status` and/or `scheduled_date` | — |
+| `api/delete_puzzle.php` | POST JSON | `id` | — |
+
+Field mapping between the API (snake_case) and the frontend `settings` (camelCase):
+
+- `arrangement` ↔ `chars` (graphemes in answer order, never the on-screen ring order, because the layout is regenerated on every render)
+- `word` = `chars.join("")`
+- `direction` ↔ `direction` (`cw`, `ccw`, or `random`)
+- `hidden_count` ↔ `hiddenCount` (0–3)
+- `center_letter` ↔ `centralCharacter`
+- `language` has no UI yet. The frontend sends `"en"`.
+
+### Current scope: save/load MVP without roles
+
+The team has deliberately deferred admin/visitor privileges to a later iteration. For now, save and load is a simple MVP with no roles:
+
+- Anyone on the main page can save a puzzle and load any saved puzzle. Nothing needs publishing.
+- New puzzles are still stored with `status = 'draft'`, but only `get_daily.php` uses `status`. Do not show draft/published state in the main-page saved list.
+- Do not add login checks, role gates, or publish requirements to the save/load flow unless the user asks for them. The admin pages in `admin/` can stay, but the main page does not depend on them.
+- These gaps are intentional for now and belong to the later privileges iteration: save, update, and delete don't check the admin session; `get_all.php` returns target words to anyone; and `db.php` holds XAMPP default credentials in source.
+
 ## Implementation conventions
 
 - Inspect `README.md` before changing behavior and update it when current status, limitations, usage, or roadmap behavior changes.
@@ -108,7 +158,7 @@ For PHP/MySQL features, also verify server-side validation, parameterized querie
 
 ## Project roadmap awareness
 
-The current frontend prototype is the baseline. Planned work proceeds toward:
+The current frontend prototype is the baseline. The MySQL schema, puzzle API, and a role-free frontend save/load MVP are in place. An admin dashboard exists, but admin/visitor privileges are deferred (step 2 in progress). Planned work proceeds toward:
 
 1. Remaining wheel configurations and UI improvements.
 2. MySQL persistence and an admin interface.

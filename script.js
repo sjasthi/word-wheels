@@ -169,4 +169,167 @@ $(function () {
   $("#relayoutBtn").on("click", function () {
     if (settings) startPuzzle();
   });
+
+  // ---- Saved puzzles (PHP API in api/) ----
+
+  const DEFAULT_LANGUAGE = "en"; // no language picker in the UI yet
+  const DIRECTION_LABELS = {
+    cw: "Clockwise",
+    ccw: "Anticlockwise",
+    random: "Random",
+  };
+
+  // The endpoints answer { success:false, error } with a 4xx/5xx status.
+  function apiError(xhr, fallback) {
+    let body = xhr.responseJSON;
+    if (!body) {
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch (_) {
+        body = null;
+      }
+    }
+    return (body && body.error) || fallback;
+  }
+
+  // #result lives inside the hidden #puzzleArea, so the saved-puzzles
+  // panel reports its own status.
+  function showSavedStatus(type, message) {
+    $("#savedStatus").html(
+      $('<div class="alert py-2 mb-0"></div>')
+        .addClass("alert-" + type)
+        .text(message),
+    );
+  }
+
+  $("#saveBtn").on("click", function () {
+    if (!puzzle) return;
+    const $btn = $(this).prop("disabled", true);
+
+    $.ajax({
+      url: "api/save_puzzle.php",
+      method: "POST",
+      contentType: "application/json",
+      dataType: "json",
+      data: JSON.stringify({
+        word: puzzle.chars.join(""),
+        arrangement: puzzle.chars, // graphemes in answer order
+        direction: puzzle.direction,
+        hidden_count: puzzle.hiddenCount,
+        center_letter: puzzle.centralCharacter,
+        language: DEFAULT_LANGUAGE,
+      }),
+    })
+      .done(function (res) {
+        if (res && res.success) {
+          showResult("success", "Puzzle saved!");
+        } else {
+          showResult("danger", (res && res.error) || "Could not save the puzzle.");
+        }
+      })
+      .fail(function (xhr) {
+        showResult("danger", apiError(xhr, "Could not save the puzzle."));
+      })
+      .always(function () {
+        $btn.prop("disabled", false);
+      });
+  });
+
+  function savedPuzzleItem(p) {
+    const details = [
+      DIRECTION_LABELS[p.direction] || p.direction,
+      p.hidden_count + " hidden",
+      "saved " + String(p.created_date || "").slice(0, 10),
+    ].join(" · ");
+
+    const $title = $('<div class="fw-semibold"></div>')
+      .append($('<span class="text-muted me-1"></span>').text("#" + p.id))
+      .append(document.createTextNode(p.word));
+
+    return $(
+      '<button type="button" class="list-group-item list-group-item-action"></button>',
+    )
+      .attr("data-id", p.id)
+      .append($title)
+      .append($('<small class="text-muted"></small>').text(details));
+  }
+
+  $("#loadSavedBtn").on("click", function () {
+    const $btn = $(this).prop("disabled", true);
+    const $list = $("#savedList").empty();
+    $("#savedStatus").empty();
+
+    $.ajax({
+      url: "api/get_all.php",
+      method: "GET",
+      dataType: "json",
+      cache: false,
+    })
+      .done(function (res) {
+        if (!res || !res.success) {
+          return showSavedStatus(
+            "danger",
+            (res && res.error) || "Could not load saved puzzles.",
+          );
+        }
+        if (!res.puzzles || !res.puzzles.length) {
+          return showSavedStatus("secondary", "No saved puzzles yet.");
+        }
+        res.puzzles.forEach(function (p) {
+          $list.append(savedPuzzleItem(p));
+        });
+      })
+      .fail(function (xhr) {
+        showSavedStatus(
+          "danger",
+          apiError(xhr, "Could not load saved puzzles."),
+        );
+      })
+      .always(function () {
+        $btn.prop("disabled", false);
+      });
+  });
+
+  $("#savedList").on("click", ".list-group-item", function () {
+    const $item = $(this);
+    $("#savedStatus").empty();
+
+    $.ajax({
+      url: "api/get_puzzle.php",
+      method: "GET",
+      data: { id: $item.data("id") },
+      dataType: "json",
+    })
+      .done(function (res) {
+        const p = res && res.success ? res.puzzle : null;
+        if (!p || !Array.isArray(p.arrangement) || !p.arrangement.length) {
+          return showSavedStatus(
+            "danger",
+            (res && res.error) || "That puzzle could not be loaded.",
+          );
+        }
+
+        settings = {
+          chars: p.arrangement,
+          direction: p.direction,
+          centralCharacter: p.center_letter,
+          hiddenCount: p.hidden_count,
+        };
+        startPuzzle();
+
+        $item
+          .addClass("active")
+          .attr("aria-current", "true")
+          .siblings()
+          .removeClass("active")
+          .removeAttr("aria-current");
+        showSavedStatus("success", "Puzzle loaded.");
+      })
+      .fail(function (xhr) {
+        showSavedStatus(
+          "danger",
+          apiError(xhr, "That puzzle could not be loaded."),
+        );
+      });
+  });
 });
