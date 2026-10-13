@@ -70,7 +70,8 @@
         max-height: 320px;
         overflow-y: auto;
       }
-      #savedList .list-group-item.active .text-muted {
+      #savedList .list-group-item.active .text-muted,
+      #savedList .list-group-item.active .text-body-tertiary {
         color: inherit !important;
         opacity: 0.85;
       }
@@ -192,9 +193,26 @@
           <div class="card shadow-sm mt-4">
             <div class="card-body">
               <h2 class="h6 text-uppercase text-muted mb-3">Saved puzzles</h2>
+              <form id="saveForm" novalidate>
+                <label for="nameInput" class="form-label"
+                  >Puzzle name <span class="text-muted">(optional)</span></label
+                >
+                <div class="input-group">
+                  <input
+                    id="nameInput"
+                    class="form-control"
+                    autocomplete="off"
+                    maxlength="100"
+                    placeholder="e.g. Animals #1"
+                  />
+                  <button id="saveBtn" class="btn btn-success" type="submit">
+                    Save puzzle
+                  </button>
+                </div>
+              </form>
               <button
                 id="loadSavedBtn"
-                class="btn btn-outline-primary w-100"
+                class="btn btn-outline-primary w-100 mt-3"
                 type="button"
               >
                 Load saved puzzles
@@ -256,13 +274,6 @@
                     type="button"
                   >
                     New layout
-                  </button>
-                  <button
-                    id="saveBtn"
-                    class="btn btn-sm btn-outline-success"
-                    type="button"
-                  >
-                    Save puzzle
                   </button>
                 </div>
 

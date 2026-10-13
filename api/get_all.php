@@ -26,7 +26,7 @@ try {
 
     if ($status && in_array($status, $valid_status)) {
         $stmt = $pdo->prepare("
-            SELECT id, word, direction, hidden_count, center_letter,
+            SELECT id, name, word, direction, hidden_count, center_letter,
                    language, status, scheduled_date, created_date
             FROM puzzles
             WHERE status = ?
@@ -35,7 +35,7 @@ try {
         $stmt->execute([$status]);
     } else {
         $stmt = $pdo->prepare("
-            SELECT id, word, direction, hidden_count, center_letter,
+            SELECT id, name, word, direction, hidden_count, center_letter,
                    language, status, scheduled_date, created_date
             FROM puzzles
             ORDER BY created_date DESC
