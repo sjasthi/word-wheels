@@ -43,6 +43,42 @@ $(function () {
     };
   }
 
+  // Rebuild a puzzle from a saved layout ({ startSlot, ringOrder, hiddenIndexes }).
+  // Returns null when the layout is missing or doesn't fit the settings
+  // (e.g. puzzles saved before layouts were stored), so callers can fall
+  // back to buildPuzzle().
+  function restorePuzzle(s, layout) {
+    if (!layout) return null;
+    const { startSlot, ringOrder, hiddenIndexes } = layout;
+    const ringSize = s.centralCharacter ? s.chars.length - 1 : s.chars.length;
+    const firstRing = s.centralCharacter ? 1 : 0;
+    const isRingIndex = (i) =>
+      Number.isInteger(i) && i >= firstRing && i < s.chars.length;
+
+    if (
+      !Number.isInteger(startSlot) ||
+      startSlot < 0 ||
+      startSlot >= ringSize ||
+      !Array.isArray(ringOrder) ||
+      ringOrder.length !== ringSize ||
+      new Set(ringOrder).size !== ringSize ||
+      !ringOrder.every(isRingIndex) ||
+      !Array.isArray(hiddenIndexes) ||
+      hiddenIndexes.length !== s.hiddenCount ||
+      !hiddenIndexes.every(isRingIndex)
+    ) {
+      return null;
+    }
+
+    return {
+      ...s,
+      startSlot,
+      ringOrder: [...ringOrder],
+      hidden: new Set(hiddenIndexes),
+      solved: false,
+    };
+  }
+
   function tilePosition(charIndex) {
     if (puzzle.centralCharacter && charIndex === 0) return { x: 50, y: 50 };
     const ringSize = puzzle.centralCharacter
@@ -97,8 +133,10 @@ $(function () {
     );
   }
 
-  function startPuzzle() {
-    puzzle = buildPuzzle(settings);
+  // Pass a saved layout to show that exact wheel; omit it (New Layout,
+  // Create) to generate a fresh random layout from the current settings.
+  function startPuzzle(savedLayout) {
+    puzzle = restorePuzzle(settings, savedLayout) || buildPuzzle(settings);
     render();
     $("#guessInput").val("").prop("disabled", false);
     $("#result").empty();
@@ -167,7 +205,7 @@ $(function () {
   });
 
   $("#relayoutBtn").on("click", function () {
-    if (settings) startPuzzle();
+    if (settings) startPuzzle(); // no layout → new random wheel
   });
 
   // ---- Saved puzzles (PHP API in api/) ----
@@ -217,6 +255,10 @@ $(function () {
         direction: puzzle.direction,
         hidden_count: puzzle.hiddenCount,
         center_letter: puzzle.centralCharacter,
+        // the current wheel layout, so loading shows the same wheel
+        start_slot: puzzle.startSlot,
+        ring_order: puzzle.ringOrder,
+        hidden_indexes: [...puzzle.hidden],
         language: DEFAULT_LANGUAGE,
       }),
     })
@@ -315,7 +357,11 @@ $(function () {
           centralCharacter: p.center_letter,
           hiddenCount: p.hidden_count,
         };
-        startPuzzle();
+        startPuzzle({
+          startSlot: p.start_slot,
+          ringOrder: p.ring_order,
+          hiddenIndexes: p.hidden_indexes,
+        });
 
         $item
           .addClass("active")

@@ -36,6 +36,9 @@ CREATE TABLE puzzles (
     direction      ENUM('cw', 'ccw', 'random') DEFAULT 'cw',
     hidden_count   INT          DEFAULT 0,            -- number of hidden letters (0-3)
     center_letter  BOOLEAN      DEFAULT TRUE,         -- whether first letter is center hub
+    start_slot     INT          NULL,                 -- ring slot the first ring letter lands on (0 = top)
+    ring_order     JSON         NULL,                 -- ring letter indexes in placement order e.g. [3,1,6,2,5,4]
+    hidden_indexes JSON         NULL,                 -- arrangement indexes shown as "?" e.g. [2,5]
     language       VARCHAR(10)  DEFAULT 'en',         -- language code e.g. 'en', 'ko', 'ja', 'hi'
     status         ENUM('draft', 'published') DEFAULT 'draft',
     scheduled_date DATE         NULL,                 -- date assigned for daily puzzle, nullable
