@@ -211,11 +211,6 @@ $(function () {
   // ---- Saved puzzles (PHP API in api/) ----
 
   const DEFAULT_LANGUAGE = "en"; // no language picker in the UI yet
-  const DIRECTION_LABELS = {
-    cw: "Clockwise",
-    ccw: "Anticlockwise",
-    random: "Random",
-  };
 
   // The endpoints answer { success:false, error } with a 4xx/5xx status.
   function apiError(xhr, fallback) {
@@ -240,9 +235,13 @@ $(function () {
     );
   }
 
-  $("#saveBtn").on("click", function () {
-    if (!puzzle) return;
-    const $btn = $(this).prop("disabled", true);
+  $("#saveForm").on("submit", function (e) {
+    e.preventDefault();
+    if (!puzzle) {
+      return showSavedStatus("warning", "Generate a wheel first.");
+    }
+    const $btn = $("#saveBtn").prop("disabled", true);
+    $("#savedStatus").empty();
 
     $.ajax({
       url: "api/save_puzzle.php",
@@ -250,6 +249,7 @@ $(function () {
       contentType: "application/json",
       dataType: "json",
       data: JSON.stringify({
+        name: $("#nameInput").val().trim(), // blank = unnamed
         word: puzzle.chars.join(""),
         arrangement: puzzle.chars, // graphemes in answer order
         direction: puzzle.direction,
@@ -264,29 +264,43 @@ $(function () {
     })
       .done(function (res) {
         if (res && res.success) {
-          showResult("success", "Puzzle saved!");
+          $("#nameInput").val("");
+          showSavedStatus("success", "Puzzle saved!");
+          loadSavedPuzzles(res.id); // refresh so the new puzzle shows up
         } else {
-          showResult("danger", (res && res.error) || "Could not save the puzzle.");
+          showSavedStatus(
+            "danger",
+            (res && res.error) || "Could not save the puzzle.",
+          );
         }
       })
       .fail(function (xhr) {
-        showResult("danger", apiError(xhr, "Could not save the puzzle."));
+        showSavedStatus("danger", apiError(xhr, "Could not save the puzzle."));
       })
       .always(function () {
         $btn.prop("disabled", false);
       });
   });
 
-  function savedPuzzleItem(p) {
-    const details = [
-      DIRECTION_LABELS[p.direction] || p.direction,
-      p.hidden_count + " hidden",
-      "saved " + String(p.created_date || "").slice(0, 10),
-    ].join(" · ");
+  // MySQL TIMESTAMP "YYYY-MM-DD HH:MM:SS" → e.g. "Oct 13, 2026, 2:05 PM"
+  function formatSavedDate(raw) {
+    const date = new Date(String(raw || "").replace(" ", "T"));
+    return isNaN(date)
+      ? String(raw || "")
+      : date.toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+  }
 
-    const $title = $('<div class="fw-semibold"></div>')
-      .append($('<span class="text-muted me-1"></span>').text("#" + p.id))
-      .append(document.createTextNode(p.word));
+  function savedPuzzleItem(p) {
+    const details = [p.word, "saved " + formatSavedDate(p.created_date)].join(
+      " · ",
+    );
+
+    const $title = p.name
+      ? $('<div class="fw-semibold"></div>').text(p.name)
+      : $('<div class="fst-italic text-body-tertiary"></div>').text("Unnamed");
 
     return $(
       '<button type="button" class="list-group-item list-group-item-action"></button>',
@@ -296,10 +310,11 @@ $(function () {
       .append($('<small class="text-muted"></small>').text(details));
   }
 
-  $("#loadSavedBtn").on("click", function () {
-    const $btn = $(this).prop("disabled", true);
+  // Fetch and render the saved-puzzles list. activeId (optional) marks
+  // that puzzle as the one currently on the wheel.
+  function loadSavedPuzzles(activeId) {
+    const $btn = $("#loadSavedBtn").prop("disabled", true);
     const $list = $("#savedList").empty();
-    $("#savedStatus").empty();
 
     $.ajax({
       url: "api/get_all.php",
@@ -318,7 +333,11 @@ $(function () {
           return showSavedStatus("secondary", "No saved puzzles yet.");
         }
         res.puzzles.forEach(function (p) {
-          $list.append(savedPuzzleItem(p));
+          const $item = savedPuzzleItem(p);
+          if (p.id == activeId) {
+            $item.addClass("active").attr("aria-current", "true");
+          }
+          $list.append($item);
         });
       })
       .fail(function (xhr) {
@@ -330,6 +349,11 @@ $(function () {
       .always(function () {
         $btn.prop("disabled", false);
       });
+  }
+
+  $("#loadSavedBtn").on("click", function () {
+    $("#savedStatus").empty();
+    loadSavedPuzzles();
   });
 
   $("#savedList").on("click", ".list-group-item", function () {

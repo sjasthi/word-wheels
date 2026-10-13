@@ -4,7 +4,7 @@
 // ============================================================
 // Method:  POST
 // Expects: JSON body {
-//            word, arrangement, direction,
+//            name (optional), word, arrangement, direction,
 //            hidden_count, center_letter, language,
 //            start_slot, ring_order, hidden_indexes   (optional layout)
 //          }
@@ -33,6 +33,8 @@ if (empty($data['word']) || empty($data['arrangement'])) {
 }
 
 // Sanitize and set defaults
+$name          = trim((string)($data['name'] ?? ''));
+$name          = $name === '' ? null : $name;               // blank = unnamed
 $word          = trim($data['word']);
 $arrangement   = json_encode($data['arrangement']);         // store array as JSON string
 $direction     = $data['direction']    ?? 'cw';
@@ -40,6 +42,13 @@ $hidden_count  = (int)($data['hidden_count']  ?? 0);
 $center_letter = (bool)($data['center_letter'] ?? true);
 $language      = $data['language']     ?? 'en';
 $created_by    = $_SESSION['user_id']  ?? null;            // null if not logged in
+
+// Validate name length (matches the VARCHAR(100) column)
+if ($name !== null && mb_strlen($name, 'UTF-8') > 100) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Name must be 100 characters or fewer.']);
+    exit;
+}
 
 // Validate direction value
 if (!in_array($direction, ['cw', 'ccw', 'random'])) {
@@ -85,11 +94,11 @@ if (isset($data['start_slot'], $data['ring_order'], $data['hidden_indexes'])) {
 try {
     $pdo = get_db();
     $stmt = $pdo->prepare("
-        INSERT INTO puzzles (word, arrangement, direction, hidden_count, center_letter,
+        INSERT INTO puzzles (name, word, arrangement, direction, hidden_count, center_letter,
                              start_slot, ring_order, hidden_indexes, language, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$word, $arrangement, $direction, $hidden_count, $center_letter,
+    $stmt->execute([$name, $word, $arrangement, $direction, $hidden_count, $center_letter,
                     $start_slot, $ring_order, $hidden_indexes, $language, $created_by]);
 
     echo json_encode([

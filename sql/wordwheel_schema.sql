@@ -31,6 +31,7 @@ CREATE TABLE users (
 -- ============================================================
 CREATE TABLE puzzles (
     id             INT AUTO_INCREMENT PRIMARY KEY,
+    name           VARCHAR(100) NULL,                 -- optional admin-given puzzle name, NULL = unnamed
     word           VARCHAR(20)  NOT NULL,             -- the target word (7-9 characters)
     arrangement    JSON         NOT NULL,             -- letter order as JSON array e.g. ["p","h","e","l","a","n","t"]
     direction      ENUM('cw', 'ccw', 'random') DEFAULT 'cw',

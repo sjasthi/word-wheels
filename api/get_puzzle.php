@@ -4,7 +4,7 @@
 // ============================================================
 // Method:  GET
 // Expects: ?id=<puzzle_id>
-// Returns: { success: true, puzzle: { id, word, arrangement,
+// Returns: { success: true, puzzle: { id, name, word, arrangement,
 //             direction, hidden_count, center_letter,
 //             start_slot, ring_order, hidden_indexes, language,
 //             status, scheduled_date, created_date } }
@@ -33,7 +33,7 @@ $id = (int)$_GET['id'];
 try {
     $pdo  = get_db();
     $stmt = $pdo->prepare("
-        SELECT id, word, arrangement, direction, hidden_count,
+        SELECT id, name, word, arrangement, direction, hidden_count,
                center_letter, start_slot, ring_order, hidden_indexes,
                language, status, scheduled_date, created_date
         FROM puzzles
