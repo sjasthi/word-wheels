@@ -5,8 +5,10 @@
 // Method:  GET
 // Expects: ?id=<puzzle_id>
 // Returns: { success: true, puzzle: { id, word, arrangement,
-//             direction, hidden_count, center_letter, language,
+//             direction, hidden_count, center_letter,
+//             start_slot, ring_order, hidden_indexes, language,
 //             status, scheduled_date, created_date } }
+//          (layout fields are null for puzzles saved without one)
 //       or { success: false, error: <message> }
 // ============================================================
 
@@ -32,7 +34,8 @@ try {
     $pdo  = get_db();
     $stmt = $pdo->prepare("
         SELECT id, word, arrangement, direction, hidden_count,
-               center_letter, language, status, scheduled_date, created_date
+               center_letter, start_slot, ring_order, hidden_indexes,
+               language, status, scheduled_date, created_date
         FROM puzzles
         WHERE id = ?
     ");
@@ -49,6 +52,11 @@ try {
     $puzzle['arrangement']   = json_decode($puzzle['arrangement']);
     $puzzle['center_letter'] = (bool)$puzzle['center_letter'];
     $puzzle['hidden_count']  = (int)$puzzle['hidden_count'];
+
+    // Saved wheel layout (null for older puzzles)
+    $puzzle['start_slot']     = $puzzle['start_slot'] === null ? null : (int)$puzzle['start_slot'];
+    $puzzle['ring_order']     = $puzzle['ring_order'] === null ? null : json_decode($puzzle['ring_order']);
+    $puzzle['hidden_indexes'] = $puzzle['hidden_indexes'] === null ? null : json_decode($puzzle['hidden_indexes']);
 
     echo json_encode(['success' => true, 'puzzle' => $puzzle]);
 

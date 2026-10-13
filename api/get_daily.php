@@ -21,7 +21,8 @@ try {
     $pdo  = get_db();
     $stmt = $pdo->prepare("
         SELECT id, word, arrangement, direction, hidden_count,
-               center_letter, language, scheduled_date
+               center_letter, start_slot, ring_order, hidden_indexes,
+               language, scheduled_date
         FROM puzzles
         WHERE scheduled_date = CURDATE()
           AND status = 'published'
@@ -40,6 +41,11 @@ try {
     $puzzle['arrangement']   = json_decode($puzzle['arrangement']);
     $puzzle['center_letter'] = (bool)$puzzle['center_letter'];
     $puzzle['hidden_count']  = (int)$puzzle['hidden_count'];
+
+    // Saved wheel layout (null for older puzzles)
+    $puzzle['start_slot']     = $puzzle['start_slot'] === null ? null : (int)$puzzle['start_slot'];
+    $puzzle['ring_order']     = $puzzle['ring_order'] === null ? null : json_decode($puzzle['ring_order']);
+    $puzzle['hidden_indexes'] = $puzzle['hidden_indexes'] === null ? null : json_decode($puzzle['hidden_indexes']);
 
     echo json_encode(['success' => true, 'puzzle' => $puzzle]);
 

@@ -5,7 +5,8 @@
 // Method:  POST
 // Expects: JSON body {
 //            word, arrangement, direction,
-//            hidden_count, center_letter, language
+//            hidden_count, center_letter, language,
+//            start_slot, ring_order, hidden_indexes   (optional layout)
 //          }
 // Returns: { success: true, id: <puzzle_id> }
 //       or { success: false, error: <message> }
@@ -54,13 +55,42 @@ if ($hidden_count < 0 || $hidden_count > 3) {
     exit;
 }
 
+// Optional wheel layout — all three fields are saved together or not at all
+$start_slot     = null;
+$ring_order     = null;
+$hidden_indexes = null;
+
+if (isset($data['start_slot'], $data['ring_order'], $data['hidden_indexes'])) {
+    $letter_count = count($data['arrangement']);
+    $ring_size    = $center_letter ? $letter_count - 1 : $letter_count;
+    $is_index     = function ($v) use ($letter_count) {
+        return is_int($v) && $v >= 0 && $v < $letter_count;
+    };
+
+    if (!is_int($data['start_slot']) || $data['start_slot'] < 0 || $data['start_slot'] >= $ring_size
+        || !is_array($data['ring_order']) || count($data['ring_order']) !== $ring_size
+        || count(array_filter($data['ring_order'], $is_index)) !== $ring_size
+        || !is_array($data['hidden_indexes']) || count($data['hidden_indexes']) !== $hidden_count
+        || count(array_filter($data['hidden_indexes'], $is_index)) !== $hidden_count) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid wheel layout.']);
+        exit;
+    }
+
+    $start_slot     = $data['start_slot'];
+    $ring_order     = json_encode(array_values($data['ring_order']));
+    $hidden_indexes = json_encode(array_values($data['hidden_indexes']));
+}
+
 try {
     $pdo = get_db();
     $stmt = $pdo->prepare("
-        INSERT INTO puzzles (word, arrangement, direction, hidden_count, center_letter, language, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO puzzles (word, arrangement, direction, hidden_count, center_letter,
+                             start_slot, ring_order, hidden_indexes, language, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt->execute([$word, $arrangement, $direction, $hidden_count, $center_letter, $language, $created_by]);
+    $stmt->execute([$word, $arrangement, $direction, $hidden_count, $center_letter,
+                    $start_slot, $ring_order, $hidden_indexes, $language, $created_by]);
 
     echo json_encode([
         'success' => true,
