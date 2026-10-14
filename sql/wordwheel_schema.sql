@@ -62,14 +62,13 @@ CREATE INDEX idx_status ON puzzles(status);
 -- Filtering puzzles by creator
 CREATE INDEX idx_created_by ON puzzles(created_by);
 
+
 -- ============================================================
--- DEFAULT ADMIN USER
+-- ADMIN CREDENTIALS
+-- User: admin, Pass: ics499admin
 -- ============================================================
--- Default credentials: username = admin / password = admin123
--- Password is bcrypt hashed (cost factor 10)
--- !! CHANGE THIS PASSWORD before deploying to production !!
 INSERT INTO users (username, password, role) VALUES (
     'admin',
-    '$2y$10$ker9CqRbuY3oJs0i3Y0TpOjM2WIt9L67V/8zteMvB439LpHwyK3mC',
+    '$2y$10$QfiS8KktTg0sPrGgyfj/g.aBZP5l.gAQkVefRNdWfBsXwi6YDH386',
     'admin'
 );
