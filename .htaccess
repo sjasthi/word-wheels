@@ -1,0 +1,8 @@
+# Make browsers revalidate the front-end files on every load so edits to
+# script.js / index.html show up without a hard refresh. Unchanged files
+# still come back as a cheap 304 Not Modified (via ETag/Last-Modified).
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|js|css)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>

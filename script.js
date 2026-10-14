@@ -282,6 +282,20 @@ $(function () {
       });
   });
 
+  // Mirror loaded settings into the "Create a puzzle" form so Generate
+  // wheel recreates the same puzzle (with a fresh layout).
+  function fillCreateForm(s) {
+    $("#wordInput").val(s.chars.join("")).removeClass("is-invalid");
+    $("#wordFeedback").text("");
+    $('input[name="direction"]')
+      .filter(function () {
+        return this.value === s.direction;
+      })
+      .prop("checked", true);
+    $(s.centralCharacter ? "#centralYes" : "#centralNo").prop("checked", true);
+    $("#hiddenSelect").val(String(s.hiddenCount));
+  }
+
   // MySQL TIMESTAMP "YYYY-MM-DD HH:MM:SS" → e.g. "Oct 13, 2026, 2:05 PM"
   function formatSavedDate(raw) {
     const date = new Date(String(raw || "").replace(" ", "T"));
@@ -381,6 +395,7 @@ $(function () {
           centralCharacter: p.center_letter,
           hiddenCount: p.hidden_count,
         };
+        fillCreateForm(settings);
         startPuzzle({
           startSlot: p.start_slot,
           ringOrder: p.ring_order,
