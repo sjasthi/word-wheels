@@ -73,7 +73,7 @@ When implementing roadmap work, keep responsibilities separated:
 
 - **Puzzle creator/admin:** enter target words, choose configuration, generate puzzles, save and edit puzzles, and run batch generation.
 - **Visitor/player:** view the daily or selected puzzle, enter one complete guess, receive feedback, and optionally reveal the answer.
-- **Puzzle storage:** persist target answer, language, layout direction, center-character setting, hidden-character count, generated layout data, and timestamps.
+- **Puzzle storage:** persist target answer, optional puzzle name, language, layout direction, center-character setting, hidden-character count, generated layout data (`start_slot`, `ring_order`, `hidden_indexes`), and timestamps. Loading a saved puzzle must show the same wheel that was saved; only **New layout** or **Generate wheel** creates a new layout.
 - **Daily puzzle:** select and display one deterministic or explicitly assigned puzzle per day; do not change the answer merely because the wheel is re-rendered.
 - **Batch processing:** accept up to 100 words, validate each independently, report row-level errors, and avoid partially claiming success for failed rows.
 - **PDF export:** generate a printable puzzle book from saved puzzles, with answers handled intentionally (for example, a separate answer section) rather than exposing answers accidentally in the player view.
@@ -82,10 +82,12 @@ Keep admin operations and visitor operations distinct in authorization and in UI
 
 ## Repository layout
 
-- `index.html` + `script.js` — the puzzle creator/player page (Bootstrap 5 cards, jQuery). Includes the **Save puzzle** button (player panel) and the **Saved puzzles** card (left column, below the creator).
+- `index.html` + `script.js` — the puzzle creator/player page (Bootstrap 5 cards, jQuery). On `lg` screens and up it is a three-column row inside a 1200px container: **Create a puzzle** (`col-lg-3`), the wheel/player panel (`col-lg-5`), and **Saved puzzles** (`col-lg-4`). Columns stack below `lg`. The Saved puzzles card holds the save form (`#saveForm`: optional `#nameInput` plus the **Save puzzle** submit button `#saveBtn`), the **Load saved puzzles** button, `#savedStatus`, and `#savedList`. Keep save/load controls in this card, not in the player panel.
 - `api/` — JSON endpoints built on PDO. `db.php` exposes `get_db()` (utf8mb4, exceptions, `FETCH_ASSOC`, real prepared statements).
 - `admin/` — session-protected admin pages (`login.php`, `dashboard.php`, `logout.php`) that list, publish/unpublish, schedule, and delete puzzles through the API.
-- `sql/wordwheel_schema.sql` — MySQL schema for `users` and `puzzles`, plus a default admin seed.
+- `sql/wordwheel_schema.sql` — MySQL schema for `users` and `puzzles`, plus a default admin seed. Fresh installs use this file.
+- `sql/migrate_*.sql` — one-time `ALTER TABLE` migrations for databases created from an older schema (`migrate_add_name.sql`, `migrate_add_layout.sql`). When adding a column, update `wordwheel_schema.sql` **and** add a matching migration.
+- `.htaccess` — sends `Cache-Control: no-cache` for `.html`, `.js`, and `.css` so browsers revalidate front-end files on every load.
 
 The page must be served by PHP (for example XAMPP or Bluehost) for the save/load features to work. Opening `index.html` from disk only supports the offline generator.
 
@@ -94,10 +96,14 @@ The page must be served by PHP (for example XAMPP or Bluehost) for the save/load
 `script.js` keeps all state inside one jQuery ready closure:
 
 - `settings = { chars, direction, centralCharacter, hiddenCount }` is the puzzle definition. `chars` is the target word's graphemes **in answer order**.
-- `buildPuzzle(settings)` derives the per-render layout (`startSlot`, `ringOrder`, `hidden`, `solved`). `startPuzzle()` builds and renders from `settings`. `render()` draws the wheel. `showResult(type, message)` writes a Bootstrap alert into `#result`.
-- Treat `buildPuzzle`, `startPuzzle`, `render`, and `showResult` as stable. Add features around them rather than changing them.
-- To show any puzzle, including one loaded from the database, set `settings` and call `startPuzzle()`.
-- `#result` sits inside `#puzzleArea`, which stays hidden until a puzzle exists. Messages that can appear before then, such as the saved-puzzles panel status, need their own `role="status"` container.
+- `buildPuzzle(settings)` derives a fresh random layout (`startSlot`, `ringOrder`, `hidden`, `solved`). `restorePuzzle(settings, layout)` rebuilds a puzzle from a saved layout `{ startSlot, ringOrder, hiddenIndexes }`, and returns `null` if the layout is missing or doesn't fit the settings. `render()` draws the wheel. `showResult(type, message)` writes a Bootstrap alert into `#result`.
+- `startPuzzle(savedLayout)` renders from `settings`. With a saved layout it shows that exact wheel (falling back to `buildPuzzle` when `restorePuzzle` returns `null`, e.g. puzzles saved before layouts were stored). With no argument (Generate wheel, New layout) it builds a new random layout.
+- Treat `buildPuzzle`, `restorePuzzle`, `startPuzzle`, `render`, and `showResult` as stable. Add features around them rather than changing them.
+- To show a puzzle loaded from the database, set `settings`, call `fillCreateForm(settings)` so the **Create a puzzle** form mirrors it, then call `startPuzzle({ startSlot, ringOrder, hiddenIndexes })` with the saved layout fields.
+- `loadSavedPuzzles(activeId)` fetches and renders the saved list and marks `activeId` as active. After a successful save, the list refreshes with the new puzzle highlighted and the name field clears.
+- Saved-list items show the puzzle name (or an italic "Unnamed"), then the word and a localized save date/time (`formatSavedDate`). Do not show the database `id`, direction, hidden count, or draft/published status in the main-page list; the `id` is only kept on the element for loading.
+- `#result` sits inside `#puzzleArea`, which stays hidden until a puzzle exists. Saved-puzzles messages (including save success/failure) go to `#savedStatus` through `showSavedStatus`, not `#result`.
+- The direction radios list **Random** first and it is the default.
 
 ## Puzzle API
 
@@ -105,10 +111,16 @@ Every endpoint returns JSON shaped as `{ success: true, ... }` or `{ success: fa
 
 | Endpoint | Method | Input | Success payload |
 |---|---|---|---|
-| `api/save_puzzle.php` | POST JSON | `word, arrangement, direction, hidden_count, center_letter, language` | `id` |
-| `api/get_all.php` | GET | optional `?status=draft\|published` | `puzzles[]` (`id, word, direction, hidden_count, center_letter, language, status, scheduled_date, created_date`; no arrangement) |
-| `api/get_puzzle.php` | GET | `?id=` | `puzzle` with decoded `arrangement` array; any status (404 if the id doesn't exist) |
-| `api/get_daily.php` | GET | none | today's published, scheduled `puzzle` |
+| `api/save_puzzle.php` | POST JSON | `word, arrangement, direction, hidden_count, center_letter, language`; optional `name`; optional layout `start_slot, ring_order, hidden_indexes` | `id` |
+| `api/get_all.php` | GET | optional `?status=draft\|published` | `puzzles[]` (`id, name, word, direction, hidden_count, center_letter, language, status, scheduled_date, created_date`; no arrangement or layout) |
+| `api/get_puzzle.php` | GET | `?id=` | `puzzle` with `name`, decoded `arrangement` array, and layout fields; any status (404 if the id doesn't exist) |
+| `api/get_daily.php` | GET | none | today's published, scheduled `puzzle`, including layout fields |
+
+`save_puzzle.php` validation:
+
+- `name` is trimmed; blank becomes `NULL` (shown as "Unnamed"). Longer than 100 characters → 400.
+- The three layout fields are saved together or not at all. If all three are sent, they must fit the puzzle (`start_slot` within the ring size, `ring_order` length equal to the ring size, `hidden_indexes` length equal to `hidden_count`, all indexes inside `arrangement`), or the request fails with 400 `Invalid wheel layout.`
+- On read, layout fields are `null` for puzzles saved without a layout; `start_slot` is cast to int and the JSON columns are decoded to arrays.
 | `api/update_puzzle.php` | POST JSON | `id` + `status` and/or `scheduled_date` | — |
 | `api/delete_puzzle.php` | POST JSON | `id` | — |
 
@@ -119,6 +131,8 @@ Field mapping between the API (snake_case) and the frontend `settings` (camelCas
 - `direction` ↔ `direction` (`cw`, `ccw`, or `random`)
 - `hidden_count` ↔ `hiddenCount` (0–3)
 - `center_letter` ↔ `centralCharacter`
+- `name` comes from `#nameInput`; it is metadata only and not part of `settings`
+- `start_slot` ↔ `puzzle.startSlot`, `ring_order` ↔ `puzzle.ringOrder`, `hidden_indexes` ↔ `[...puzzle.hidden]` (a `Set` on the frontend). These describe one rendered wheel. Save them from `puzzle`, not `settings`, and pass them back as `{ startSlot, ringOrder, hiddenIndexes }` when loading.
 - `language` has no UI yet. The frontend sends `"en"`.
 
 ### Current scope: save/load MVP without roles

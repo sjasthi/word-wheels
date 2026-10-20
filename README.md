@@ -8,7 +8,7 @@ A web-based Word Wheel puzzle generator and player. A puzzle creator supplies a 
 
 **Current iteration: FP3**
 
-This is an active capstone project. The current build is a functional frontend prototype. Backend integration (PHP, MySQL) is planned for upcoming iterations.
+This is an active capstone project. The puzzle generator and player run entirely in the browser; saving and loading puzzles uses a PHP/MySQL backend. Hosting on Bluehost is planned for an upcoming iteration.
 
 ### What's working
 - Word input and validation (7–9 characters, letters only, no spaces)
@@ -23,8 +23,13 @@ This is an active capstone project. The current build is a functional frontend p
 - Guess input with correct/incorrect feedback
 - Reveal button — shows the full answer and highlights previously hidden letters in green
 - Multilanguage support — correctly handles non-Latin scripts including Japanese, Chinese, Korean, and other Unicode character sets via `Intl.Segmenter`
+- Three-column layout on wide screens — creator, wheel, and saved puzzles side by side, so a saved puzzle can be picked without scrolling away from the wheel
 - MySQL schema and PHP API for saving, listing, loading, updating, and deleting puzzles
-- **Save puzzle** button and a **Saved puzzles** panel for reloading saved puzzles (requires PHP/MySQL)
+- **Saved puzzles** panel (requires PHP/MySQL):
+  - **Save puzzle** with an optional puzzle name (up to 100 characters; blank shows as "Unnamed")
+  - Saved list shows each puzzle's name, word, and a readable save date/time; the list refreshes and highlights the puzzle after saving
+  - Loading a puzzle shows the exact same wheel that was saved (same starting position, letter order, and hidden letters)
+  - Loading a puzzle also fills the **Create a puzzle** form with its word and settings, so **Generate wheel** recreates it with a fresh layout
 - Admin login and dashboard for publishing, scheduling, and deleting puzzles
 
 ### Not yet implemented
@@ -41,8 +46,8 @@ This is an active capstone project. The current build is a functional frontend p
 |---|---|
 | Frontend | HTML5, CSS3, Bootstrap 5.3 |
 | Interactivity | JavaScript (ES6+), jQuery 3.7 |
-| Backend (planned) | PHP |
-| Database (planned) | MySQL |
+| Backend | PHP |
+| Database | MySQL |
 | Hosting (planned) | Bluehost |
 | Version Control | GitHub |
 
@@ -62,20 +67,27 @@ That's it. No dependencies to install — Bootstrap and jQuery are loaded from C
 
 To use saving and loading, serve the project folder with PHP (for example from XAMPP's `htdocs`), import `sql/wordwheel_schema.sql` into MySQL, and set the credentials in `api/db.php`.
 
+If your database was created from an older version of the schema, run the migrations in `sql/` once instead of re-importing:
+
+- `sql/migrate_add_name.sql` — adds the optional puzzle `name` column
+- `sql/migrate_add_layout.sql` — adds the saved wheel layout columns (`start_slot`, `ring_order`, `hidden_indexes`). Puzzles saved before this migration still load, but get a new random layout.
+
+The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, and `.css` files on every load, so edits show up without a hard refresh.
+
 ---
 
 ## How to Use
 
 1. Enter a word between 7 and 9 letters in the **Create a puzzle** panel
-2. Select a direction — clockwise, anticlockwise, or random
+2. Select a direction — random (the default), clockwise, or anticlockwise
    (with a center character, random keeps the first character in the center)
 3. Choose whether to show a center character and how many letters to hide
 4. Click **Generate wheel**
-5. The wheel appears in the right panel — type your guess and click **Check**
+5. The wheel appears in the middle panel — type your guess and click **Check**
 6. Use **New layout** to re-randomize letter positions for the same word
 7. Use **Reveal** to show the answer if stuck
-8. Use **Save puzzle** to store the current puzzle
-9. Click **Load saved puzzles** and pick one to play it
+8. In the **Saved puzzles** panel on the right, optionally type a puzzle name and click **Save puzzle** to store the current wheel
+9. Click **Load saved puzzles** and pick one to play it — the same wheel appears, and the create form fills in with that puzzle's settings
 
 ---
 
