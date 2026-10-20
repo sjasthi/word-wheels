@@ -108,7 +108,10 @@ try {
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0">Word Wheel — Admin Dashboard</h1>
-        <a href="logout.php" class="btn btn-sm btn-outline-secondary">Log out</a>
+        <div class="d-flex gap-2">
+            <a href="batch.php" class="btn btn-sm btn-outline-primary">Mass generate</a>
+            <a href="logout.php" class="btn btn-sm btn-outline-secondary">Log out</a>
+        </div>
     </div>
 
     <!-- =====================================================
