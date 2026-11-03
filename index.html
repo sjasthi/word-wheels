@@ -8,64 +8,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"
     />
-    <style>
-      :root {
-        --wheel-size: min(340px, 82vw);
-      }
-
-      .wheel {
-        position: relative;
-        width: var(--wheel-size);
-        aspect-ratio: 1;
-        margin: 0 auto;
-      }
-      .wheel svg {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
-      .wheel svg circle {
-        fill: #f8f9fa;
-        stroke: #adb5bd;
-        stroke-width: 0.6;
-      }
-      .wheel svg line {
-        stroke: #ced4da;
-        stroke-width: 0.5;
-      }
-
-      .tile {
-        position: absolute;
-        width: 17%;
-        aspect-ratio: 1;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
-        background: #fff;
-        border: 2px solid #0d6efd;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: calc(var(--wheel-size) * 0.08);
-        text-transform: uppercase;
-        user-select: none;
-      }
-      .tile.hub {
-        width: 20%;
-        background: #0d6efd;
-        color: #fff;
-      }
-      .tile.blank {
-        border-style: dashed;
-        color: #adb5bd;
-      }
-      .tile.revealed {
-        color: #198754;
-        border-color: #198754;
-        border-style: solid;
-      }
-    </style>
+    <link rel="stylesheet" href="wheel.css" />
   </head>
   <body class="bg-light">
     <div class="container py-4" style="max-width: 600px">
@@ -136,68 +79,15 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="wheel.js"></script>
     <script>
     $(function () {
-      const RING_RADIUS = 38;
-
-      const segmenter =
-        window.Intl && Intl.Segmenter
-          ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
-          : null;
-
-      function toChars(text) {
-        const normalized = text.normalize("NFC");
-        return segmenter
-          ? Array.from(segmenter.segment(normalized), (s) => s.segment)
-          : Array.from(normalized);
-      }
+      const { toChars, puzzleFromApi, renderWheel } = window.WordWheel;
 
       let puzzle = null;
 
-      function tilePosition(charIndex) {
-        if (puzzle.centralCharacter && charIndex === 0) return { x: 50, y: 50 };
-        const ringSize = puzzle.centralCharacter
-          ? puzzle.chars.length - 1
-          : puzzle.chars.length;
-        const step = puzzle.direction === "ccw" ? -1 : 1;
-        const sequentialIndex = puzzle.centralCharacter ? charIndex - 1 : charIndex;
-        const ringIndex =
-          puzzle.direction === "random"
-            ? puzzle.ringOrder.indexOf(charIndex)
-            : sequentialIndex;
-        const slot =
-          (((puzzle.startSlot + step * ringIndex) % ringSize) + ringSize) %
-          ringSize;
-        const angle = ((-90 + (slot * 360) / ringSize) * Math.PI) / 180;
-        return {
-          x: 50 + RING_RADIUS * Math.cos(angle),
-          y: 50 + RING_RADIUS * Math.sin(angle),
-        };
-      }
-
       function render() {
-        const $wheel = $("#wheel");
-        $wheel.find(".tile").remove();
-
-        let svg = `<circle cx="50" cy="50" r="${RING_RADIUS}"></circle>`;
-
-        puzzle.chars.forEach((ch, i) => {
-          const { x, y } = tilePosition(i);
-          if (puzzle.centralCharacter && i > 0) {
-            svg += `<line x1="50" y1="50" x2="${x}" y2="${y}"></line>`;
-          }
-
-          const isHidden = puzzle.hidden.has(i) && !puzzle.solved;
-          const $tile = $('<div class="tile"></div>')
-            .toggleClass("hub", puzzle.centralCharacter && i === 0)
-            .toggleClass("blank", isHidden)
-            .toggleClass("revealed", puzzle.hidden.has(i) && puzzle.solved)
-            .css({ left: x + "%", top: y + "%" })
-            .text(isHidden ? "?" : ch);
-          $wheel.append($tile);
-        });
-
-        $wheel.find("svg").html(svg);
+        renderWheel(puzzle, $("#wheel"));
       }
 
       function showResult(type, message) {
@@ -222,18 +112,12 @@
             return;
           }
 
-          const p = res.puzzle;
-
-          puzzle = {
-            chars: p.arrangement,
-            direction: p.direction,
-            centralCharacter: p.center_letter,
-            hiddenCount: p.hidden_count,
-            startSlot: p.start_slot,
-            ringOrder: p.ring_order,
-            hidden: new Set(p.hidden_indexes || []),
-            solved: false,
-          };
+          puzzle = puzzleFromApi(res.puzzle);
+          if (!puzzle) {
+            $("#emptyState p").text("Today's puzzle couldn't be loaded. Please check back later.");
+            $("#emptyState").removeClass("d-none");
+            return;
+          }
 
           render();
           $("#puzzleArea").removeClass("d-none");

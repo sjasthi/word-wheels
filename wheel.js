@@ -1,14 +1,15 @@
 // ============================================================
 // Word Wheel — shared puzzle engine
 // ============================================================
-// Plain script (no build step). Exposes window.WordWheel so any page
-// can build and draw wheels without its own copy of the layout logic.
-// Currently used by admin/batch.php. admin/dashboard.js and index.html
-// still carry their own copies of these functions.
+// Plain script (no build step). Exposes window.WordWheel so every page
+// (index.html, admin/dashboard.js, admin/batch.js, admin/print.js)
+// builds, converts, and draws wheels with the same code.
 // ============================================================
 
 window.WordWheel = (function () {
   const RING_RADIUS = 38; // in SVG viewBox units (0–100)
+  const DIRECTIONS = ["cw", "ccw", "random"];
+  const DEFAULT_LANGUAGE = "en"; // no language picker in the UI yet
 
   // Split text into user-perceived characters (graphemes) so that
   // non-Latin scripts (e.g. Telugu, Hindi) count and display correctly.
@@ -61,6 +62,95 @@ window.WordWheel = (function () {
     };
   }
 
+  // Rebuild a puzzle from a saved layout ({ startSlot, ringOrder, hiddenIndexes }).
+  // Returns null when the layout doesn't fit the settings (wrong length,
+  // repeated or out-of-range indexes, or the hub letter marked hidden),
+  // so a bad database row is reported instead of drawn wrong.
+  function restorePuzzle(s, layout) {
+    if (!layout || !DIRECTIONS.includes(s.direction)) return null;
+    const { startSlot, ringOrder, hiddenIndexes } = layout;
+    const ringSize = s.centralCharacter ? s.chars.length - 1 : s.chars.length;
+    const firstRing = s.centralCharacter ? 1 : 0;
+    const isRingIndex = (i) =>
+      Number.isInteger(i) && i >= firstRing && i < s.chars.length;
+
+    if (
+      !Number.isInteger(startSlot) ||
+      startSlot < 0 ||
+      startSlot >= ringSize ||
+      !Array.isArray(ringOrder) ||
+      ringOrder.length !== ringSize ||
+      new Set(ringOrder).size !== ringSize ||
+      !ringOrder.every(isRingIndex) ||
+      !Array.isArray(hiddenIndexes) ||
+      hiddenIndexes.length !== s.hiddenCount ||
+      new Set(hiddenIndexes).size !== s.hiddenCount ||
+      !hiddenIndexes.every(isRingIndex)
+    ) {
+      return null;
+    }
+
+    return {
+      ...s,
+      startSlot,
+      ringOrder: [...ringOrder],
+      hidden: new Set(hiddenIndexes),
+      solved: false,
+    };
+  }
+
+  // API puzzle (get_puzzle.php / get_daily.php) → puzzle for renderWheel,
+  // showing exactly the saved wheel. Returns null when the row is missing
+  // its letters or its saved layout is invalid.
+  function puzzleFromApi(p) {
+    if (!p || !Array.isArray(p.arrangement) || !p.arrangement.length) {
+      return null;
+    }
+    return restorePuzzle(
+      {
+        chars: p.arrangement,
+        direction: p.direction,
+        centralCharacter: !!p.center_letter,
+        hiddenCount: p.hidden_count,
+      },
+      {
+        startSlot: p.start_slot,
+        ringOrder: p.ring_order,
+        hiddenIndexes: p.hidden_indexes,
+      },
+    );
+  }
+
+  // Puzzle → JSON body for api/save_puzzle.php, including the wheel
+  // layout so loading it later shows the same wheel. Blank name = unnamed.
+  function puzzleToApi(puzzle, name) {
+    return {
+      name: name || "",
+      word: puzzle.chars.join(""),
+      arrangement: puzzle.chars, // graphemes in answer order
+      direction: puzzle.direction,
+      hidden_count: puzzle.hiddenCount,
+      center_letter: puzzle.centralCharacter,
+      start_slot: puzzle.startSlot,
+      ring_order: puzzle.ringOrder,
+      hidden_indexes: [...puzzle.hidden],
+      language: DEFAULT_LANGUAGE,
+    };
+  }
+
+  // The endpoints answer { success:false, error } with a 4xx/5xx status.
+  function apiError(xhr, fallback) {
+    let body = xhr.responseJSON;
+    if (!body) {
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch (_) {
+        body = null;
+      }
+    }
+    return (body && body.error) || fallback;
+  }
+
   function tilePosition(puzzle, charIndex) {
     if (puzzle.centralCharacter && charIndex === 0) return { x: 50, y: 50 };
     const ringSize = puzzle.centralCharacter
@@ -110,5 +200,15 @@ window.WordWheel = (function () {
       .append(tiles);
   }
 
-  return { toChars, extractWords, buildPuzzle, tilePosition, renderWheel };
+  return {
+    toChars,
+    extractWords,
+    buildPuzzle,
+    restorePuzzle,
+    puzzleFromApi,
+    puzzleToApi,
+    apiError,
+    tilePosition,
+    renderWheel,
+  };
 })();
