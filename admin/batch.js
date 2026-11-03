@@ -12,8 +12,11 @@ $(function () {
     ccw: "Anticlockwise",
   };
 
+  const MAX_EXAMPLES = 5; // rejected words named in the status line
+
   let candidates = []; // unique words from the file: { word, chars }
   let duplicateCount = 0;
+  let rejected = []; // unique tokens with apostrophes, hyphens, or digits
   let entries = []; // generated sheet: { puzzle, savedId, $note }
 
   function alertBox(type, content) {
@@ -45,6 +48,7 @@ $(function () {
     const file = this.files[0];
     candidates = [];
     duplicateCount = 0;
+    rejected = [];
     clearSheet();
     $("#batchImportStatus").empty();
 
@@ -70,8 +74,9 @@ $(function () {
       return showStatus("#batchImportStatus", "danger", "Could not read that file.");
     }
 
+    const extracted = extractWords(text);
     const seen = new Set();
-    extractWords(text).forEach(function (word) {
+    extracted.words.forEach(function (word) {
       const key = word.toLocaleLowerCase();
       if (seen.has(key)) {
         duplicateCount++;
@@ -80,12 +85,33 @@ $(function () {
       seen.add(key);
       candidates.push({ word, chars: toChars(word) });
     });
+    const seenRejected = new Set();
+    extracted.rejected.forEach(function (token) {
+      const key = token.toLocaleLowerCase();
+      if (seenRejected.has(key)) return;
+      seenRejected.add(key);
+      rejected.push(token);
+    });
 
     if (!candidates.length) {
-      showStatus("#batchImportStatus", "warning", "No words found in that file.");
+      showStatus(
+        "#batchImportStatus",
+        "warning",
+        "No letters-only words found in that file." + rejectedNote(),
+      );
     }
     refreshWordList();
   });
+
+  // " Skipped N with apostrophes, hyphens, or numbers (a, b, …)." or "".
+  function rejectedNote() {
+    if (!rejected.length) return "";
+    const examples = rejected.slice(0, MAX_EXAMPLES).join(", ");
+    return (
+      ` Skipped ${rejected.length} with apostrophes, hyphens, or numbers ` +
+      `(${examples}${rejected.length > MAX_EXAMPLES ? ", …" : ""}).`
+    );
+  }
 
   // Returns { min, max } or null (with the reason shown) when invalid.
   function readLengthRange() {
@@ -153,7 +179,8 @@ $(function () {
       inRange ? "secondary" : "warning",
       `Found ${candidates.length} different words; ${inRange} are ` +
         `${range.min}–${range.max} letters long.` +
-        (skipped.length ? ` Skipped: ${skipped.join(", ")}.` : ""),
+        (skipped.length ? ` Skipped: ${skipped.join(", ")}.` : "") +
+        rejectedNote(),
     );
 
     $("#batchWordPicker").toggleClass("d-none", !inRange);
