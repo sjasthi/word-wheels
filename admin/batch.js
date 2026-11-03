@@ -54,22 +54,22 @@ $(function () {
     return new TextDecoder(encoding).decode(bytes);
   }
 
-  $("#fileInput").on("change", async function () {
+  $("#batchFileInput").on("change", async function () {
     const file = this.files[0];
     candidates = [];
     duplicateCount = 0;
     clearSheet();
-    $("#importStatus").empty();
+    $("#batchImportStatus").empty();
 
     if (!file) return refreshWordList();
     if (!/\.txt$/i.test(file.name)) {
       refreshWordList();
-      return showStatus("#importStatus", "danger", "Choose a .txt file.");
+      return showStatus("#batchImportStatus", "danger", "Choose a .txt file.");
     }
     if (file.size > MAX_FILE_BYTES) {
       refreshWordList();
       return showStatus(
-        "#importStatus",
+        "#batchImportStatus",
         "danger",
         "That file is too large (5 MB maximum).",
       );
@@ -80,7 +80,7 @@ $(function () {
       text = await readText(file);
     } catch (_) {
       refreshWordList();
-      return showStatus("#importStatus", "danger", "Could not read that file.");
+      return showStatus("#batchImportStatus", "danger", "Could not read that file.");
     }
 
     const seen = new Set();
@@ -95,15 +95,15 @@ $(function () {
     });
 
     if (!candidates.length) {
-      showStatus("#importStatus", "warning", "No words found in that file.");
+      showStatus("#batchImportStatus", "warning", "No words found in that file.");
     }
     refreshWordList();
   });
 
   // Returns { min, max } or null (with the reason shown) when invalid.
   function readLengthRange() {
-    const min = parseInt($("#minLength").val(), 10);
-    const max = parseInt($("#maxLength").val(), 10);
+    const min = parseInt($("#batchMinLength").val(), 10);
+    const max = parseInt($("#batchMaxLength").val(), 10);
     let error = "";
     if (
       !Number.isInteger(min) ||
@@ -115,20 +115,20 @@ $(function () {
     } else if (min > max) {
       error = "Min length can't be more than max length.";
     }
-    $("#lengthFeedback").text(error);
-    $("#minLength, #maxLength").toggleClass("is-invalid", !!error);
+    $("#batchLengthFeedback").text(error);
+    $("#batchMinLength, #batchMaxLength").toggleClass("is-invalid", !!error);
     return error ? null : { min, max };
   }
 
   // Re-filter the imported words by length and rebuild the checkbox list.
   // The first 100 words in range start out selected.
   function refreshWordList() {
-    const $list = $("#wordList").empty();
+    const $list = $("#batchWordList").empty();
     const range = readLengthRange();
     clearSheet();
 
     if (!candidates.length || !range) {
-      $("#wordPicker").addClass("d-none");
+      $("#batchWordPicker").addClass("d-none");
       return updateSelection();
     }
 
@@ -139,7 +139,7 @@ $(function () {
       if (length < range.min) return tooShort++;
       if (length > range.max) return tooLong++;
 
-      const id = "word-" + i;
+      const id = "batch-word-" + i;
       $list.append(
         $('<div class="form-check mb-0"></div>')
           .append(
@@ -162,19 +162,19 @@ $(function () {
       duplicateCount && `${duplicateCount} repeats`,
     ].filter(Boolean);
     showStatus(
-      "#importStatus",
+      "#batchImportStatus",
       inRange ? "secondary" : "warning",
       `Found ${candidates.length} different words; ${inRange} are ` +
         `${range.min}–${range.max} letters long.` +
         (skipped.length ? ` Skipped: ${skipped.join(", ")}.` : ""),
     );
 
-    $("#wordPicker").toggleClass("d-none", !inRange);
+    $("#batchWordPicker").toggleClass("d-none", !inRange);
     updateSelection();
   }
 
   function selectedWords() {
-    return $("#wordList input:checked")
+    return $("#batchWordList input:checked")
       .map(function () {
         return candidates[$(this).data("index")];
       })
@@ -182,41 +182,41 @@ $(function () {
   }
 
   function updateSelection() {
-    const count = $("#wordList input:checked").length;
+    const count = $("#batchWordList input:checked").length;
     const tooMany = count > MAX_PUZZLES;
-    $("#selectionCount")
+    $("#batchSelectionCount")
       .text(
         `${count} selected (max ${MAX_PUZZLES})` +
           (tooMany ? ` — unselect ${count - MAX_PUZZLES}` : ""),
       )
       .toggleClass("text-danger", tooMany);
-    $("#generateBtn").prop("disabled", count === 0 || tooMany);
+    $("#batchGenerateBtn").prop("disabled", count === 0 || tooMany);
   }
 
-  $("#minLength, #maxLength").on("input", refreshWordList);
-  $("#wordList").on("change", "input", function () {
+  $("#batchMinLength, #batchMaxLength").on("input", refreshWordList);
+  $("#batchWordList").on("change", "input", function () {
     clearSheet();
     updateSelection();
   });
 
-  $("#selectFirstBtn").on("click", function () {
-    $("#wordList input").each(function (i) {
+  $("#batchSelectFirstBtn").on("click", function () {
+    $("#batchWordList input").each(function (i) {
       this.checked = i < MAX_PUZZLES;
     });
     clearSheet();
     updateSelection();
   });
 
-  $("#clearSelectionBtn").on("click", function () {
-    $("#wordList input").prop("checked", false);
+  $("#batchClearSelectionBtn").on("click", function () {
+    $("#batchWordList input").prop("checked", false);
     clearSheet();
     updateSelection();
   });
 
   // ---- Step 2: configure and generate ----
 
-  $('input[name="mode"]').on("change", function () {
-    $("#sameSettings").prop("disabled", this.value === "random");
+  $('input[name="batchMode"]').on("change", function () {
+    $("#batchSameSettings").prop("disabled", this.value === "random");
   });
 
   function randomItem(list) {
@@ -227,17 +227,17 @@ $(function () {
   // hide at most ringSize - 1 letters so at least one ring letter shows.
   function settingsFor(chars) {
     const s =
-      $('input[name="mode"]:checked').val() === "random"
+      $('input[name="batchMode"]:checked').val() === "random"
         ? {
             direction: randomItem(DIRECTIONS),
             centralCharacter: Math.random() < 0.5,
             hiddenCount: randomItem([0, 1, 2, 3]),
           }
         : {
-            direction: $('input[name="direction"]:checked').val(),
+            direction: $('input[name="batchDirection"]:checked').val(),
             centralCharacter:
-              $('input[name="centralCharacter"]:checked').val() === "yes",
-            hiddenCount: parseInt($("#hiddenSelect").val(), 10),
+              $('input[name="batchCentralCharacter"]:checked').val() === "yes",
+            hiddenCount: parseInt($("#batchHiddenSelect").val(), 10),
           };
     const ringSize = s.centralCharacter ? chars.length - 1 : chars.length;
     return { chars, ...s, hiddenCount: Math.min(s.hiddenCount, ringSize - 1) };
@@ -253,12 +253,12 @@ $(function () {
 
   function clearSheet() {
     entries = [];
-    $("#sheet").empty();
-    $("#sheetStatus").empty();
-    $("#printBtn, #saveAllBtn").prop("disabled", true);
+    $("#batchSheet").empty();
+    $("#batchSheetStatus").empty();
+    $("#batchPrintBtn, #batchSaveAllBtn").prop("disabled", true);
   }
 
-  $("#generateBtn").on("click", function () {
+  $("#batchGenerateBtn").on("click", function () {
     const words = selectedWords();
     if (!words.length || words.length > MAX_PUZZLES) return;
 
@@ -267,53 +267,46 @@ $(function () {
       return { puzzle: buildPuzzle(settingsFor(c.chars)), savedId: null };
     });
 
-    const $sheet = $("#sheet");
+    const $sheet = $("#batchSheet");
     entries.forEach(function (entry, i) {
       const $wheel = $('<div class="wheel"></div>');
       renderWheel(entry.puzzle, $wheel);
-      entry.$note = $('<p class="small text-muted mb-0 no-print"></p>').text(
+      entry.$note = $('<p class="small text-muted mb-0"></p>').text(
         puzzleDetails(entry.puzzle),
       );
 
       $sheet.append(
-        $('<section class="puzzle"></section>').append(
-          $('<h2 class="h3"></h2>').text("Puzzle " + (i + 1)),
-          $('<p class="text-muted mb-0"></p>').text(
+        $('<section class="batch-puzzle-preview card mb-3 p-3 text-center"></section>').append(
+          $('<h2 class="h5 mb-1"></h2>').text("Puzzle " + (i + 1)),
+          $('<p class="text-muted small mb-0"></p>').text(
             "Read the letters around the wheel to find the hidden word.",
           ),
           $wheel,
-          $('<p class="answer-line"></p>').text(
-            "Answer: ______________________",
-          ),
+          $('<p class="mb-1"></p>').text("Answer: ______________________"),
           entry.$note,
         ),
       );
     });
 
-    const $answers = $("<ol></ol>");
-    entries.forEach(function (entry) {
-      $answers.append($("<li></li>").text(entry.puzzle.chars.join("")));
-    });
-    $sheet.append(
-      $('<section class="solutions"></section>').append(
-        $('<h2 class="h3 mb-3"></h2>').text("Solutions"),
-        $answers,
-      ),
-    );
-
-    $("#printBtn, #saveAllBtn").prop("disabled", false);
+    $("#batchPrintBtn, #batchSaveAllBtn").prop("disabled", false);
     showStatus(
-      "#sheetStatus",
+      "#batchSheetStatus",
       "success",
       `Generated ${entries.length} puzzles below. Print them, or save them to the database.`,
     );
   });
 
-  // ---- Step 3: print or save ----
+  // ---- Step 3: print ----
 
-  $("#printBtn").on("click", function () {
-    window.print();
+  // Queues the generated puzzles into the shared print modal (dashboard.js
+  // exposes window.openPrintModal once it initialises).
+  $("#batchPrintBtn").on("click", function () {
+    if (!entries.length) return;
+    const puzzles = entries.map(function (e) { return e.puzzle; });
+    window.openPrintModal(puzzles);
   });
+
+  // ---- Step 4: save all ----
 
   function savePuzzle(p, name) {
     return new Promise(function (resolve, reject) {
@@ -323,13 +316,12 @@ $(function () {
         contentType: "application/json",
         dataType: "json",
         data: JSON.stringify({
-          name: name, // blank = unnamed
+          name: name,
           word: p.chars.join(""),
-          arrangement: p.chars, // graphemes in answer order
+          arrangement: p.chars,
           direction: p.direction,
           hidden_count: p.hiddenCount,
           center_letter: p.centralCharacter,
-          // the generated layout, so loading shows the same wheel as the printout
           start_slot: p.startSlot,
           ring_order: p.ringOrder,
           hidden_indexes: [...p.hidden],
@@ -348,27 +340,27 @@ $(function () {
 
   // Saves one puzzle at a time. Clicking again after a partial failure
   // only retries the puzzles that haven't been saved yet.
-  $("#saveAllBtn").on("click", async function () {
+  $("#batchSaveAllBtn").on("click", async function () {
     const pending = entries.filter((entry) => !entry.savedId);
     if (!pending.length) {
       return showStatus(
-        "#sheetStatus",
+        "#batchSheetStatus",
         "secondary",
         "All puzzles are already saved.",
       );
     }
 
     const $controls = $(
-      "#saveAllBtn, #generateBtn, #fileInput, #minLength, #maxLength, #wordPicker button, #wordList input",
+      "#batchSaveAllBtn, #batchGenerateBtn, #batchFileInput, #batchMinLength, #batchMaxLength, #batchWordPicker button, #batchWordList input",
     ).prop("disabled", true);
-    const prefix = $("#namePrefix").val().trim();
+    const prefix = $("#batchNamePrefix").val().trim();
     const failures = [];
 
     for (let i = 0; i < pending.length; i++) {
       const entry = pending[i];
       const number = entries.indexOf(entry) + 1;
       showStatus(
-        "#sheetStatus",
+        "#batchSheetStatus",
         "secondary",
         `Saving ${i + 1} of ${pending.length}…`,
       );
@@ -391,14 +383,14 @@ $(function () {
     const saved = pending.length - failures.length;
     if (!failures.length) {
       return showStatus(
-        "#sheetStatus",
+        "#batchSheetStatus",
         "success",
         `Saved ${saved} puzzle${saved === 1 ? "" : "s"}.`,
       );
     }
     const $list = $('<ul class="mb-0 mt-1"></ul>');
     failures.forEach((f) => $list.append($("<li></li>").text(f)));
-    $("#sheetStatus").html(
+    $("#batchSheetStatus").html(
       alertBox("warning", [
         document.createTextNode(
           `Saved ${saved} of ${pending.length}. These failed — click Save all again to retry them:`,
@@ -409,6 +401,6 @@ $(function () {
   });
 
   // Browsers can restore form state on reload, so sync the UI to it.
-  $('input[name="mode"]:checked').trigger("change");
+  $('input[name="batchMode"]:checked').trigger("change");
   refreshWordList();
 });
