@@ -2,7 +2,7 @@
 // Word Wheel — shared puzzle engine
 // ============================================================
 // Plain script (no build step). Exposes window.WordWheel so every page
-// (index.html, admin/dashboard.js, admin/batch.js, admin/print.js)
+// (index.html, sandbox.js, admin/dashboard.js, admin/batch.js, admin/print.js)
 // builds, converts, and draws wheels with the same code.
 // ============================================================
 
@@ -25,16 +25,28 @@ window.WordWheel = (function () {
       : Array.from(normalized);
   }
 
-  // A word is a run of letters and combining marks (Telugu vowel signs
-  // and virama are marks). Zero-width joiners are kept when they sit
-  // between letters. Everything else (spaces, punctuation, digits,
-  // commas, line breaks) separates words.
-  const WORD_PATTERN = /[\p{L}\p{M}]+(?:[‌‍][\p{L}\p{M}]+)*/gu;
+  // A token is a run of letters, combining marks, digits, apostrophes,
+  // hyphens, and zero-width joiners. Everything else (spaces, line
+  // breaks, commas, periods, quotes, brackets) separates tokens.
+  const TOKEN_PATTERN = /[\p{L}\p{M}\p{N}'’ʼ\-‐‑‌‍]+/gu;
+  // A word is letters and combining marks only (Telugu vowel signs and
+  // virama are marks), with zero-width joiners allowed between letters.
+  const WORD_PATTERN = /^[\p{L}\p{M}]+(?:[‌‍][\p{L}\p{M}]+)*$/u;
+  const LETTER_PATTERN = /\p{L}/u;
 
   // Pull every word out of free text: one word per line, a
   // comma-separated list, or a paragraph from a book all work.
+  // Tokens with an apostrophe, hyphen, or digit inside ("doesn't",
+  // "well-known", "abc123") are returned in `rejected` so the user can
+  // fix them; tokens with no letters at all ("2024") are ignored.
   function extractWords(text) {
-    return text.normalize("NFC").match(WORD_PATTERN) || [];
+    const words = [];
+    const rejected = [];
+    (text.normalize("NFC").match(TOKEN_PATTERN) || []).forEach((token) => {
+      if (WORD_PATTERN.test(token)) words.push(token);
+      else if (LETTER_PATTERN.test(token)) rejected.push(token);
+    });
+    return { words, rejected };
   }
 
   function shuffle(arr) {
@@ -43,6 +55,22 @@ window.WordWheel = (function () {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr;
+  }
+
+  // Most letters a word of this length can hide (0–3) while still
+  // showing at least one ring letter.
+  function maxHidden(length, centralCharacter) {
+    const ringSize = centralCharacter ? length - 1 : length;
+    return Math.max(0, Math.min(3, ringSize - 1));
+  }
+
+  // Compare a complete guess with the answer: "empty", "correct", or "wrong".
+  function checkGuess(puzzle, rawGuess) {
+    const guess = toChars(rawGuess.trim()).join("").toLocaleLowerCase();
+    if (!guess) return "empty";
+    return guess === puzzle.chars.join("").toLocaleLowerCase()
+      ? "correct"
+      : "wrong";
   }
 
   // settings = { chars, direction, centralCharacter, hiddenCount }
@@ -203,6 +231,8 @@ window.WordWheel = (function () {
   return {
     toChars,
     extractWords,
+    maxHidden,
+    checkGuess,
     buildPuzzle,
     restorePuzzle,
     puzzleFromApi,

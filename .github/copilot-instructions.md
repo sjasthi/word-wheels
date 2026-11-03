@@ -83,6 +83,7 @@ Keep admin operations and visitor operations distinct in authorization and in UI
 ## Repository layout
 
 - `index.html` — the **player** page (site root). It loads today's published, scheduled puzzle from `api/get_daily.php` and offers guess and reveal only. Uses `wheel.js` and `wheel.css`.
+- `sandbox.html` + `sandbox.js` — the **Sandbox** player page, linked from the bottom of `index.html`. The player pastes a word bank and picks settings; wheels are built in the browser from random bank words and never saved. Setup IDs are prefixed `sb`; the play area reuses `index.html`'s IDs (`#wheel`, `#guessForm`, `#guessInput`, `#revealBtn`, `#result`, `#puzzleArea`). See "Sandbox" below.
 - `admin/dashboard.php` — the admin page (session-protected), split into three Bootstrap tabs:
   - **Create Puzzle** (`#pane-create`): a three-column row on `lg` screens and up — **Configuration** (`col-lg-3`), the wheel preview (`col-lg-5`), and **Save & Load** (`col-lg-4`). Columns stack below `lg`. The Save & Load card holds the save form (`#saveForm`: optional `#nameInput` plus the submit button `#saveBtn`), the **Load saved puzzles** button, `#savedStatus`, and `#savedList`. Keep save/load controls in this card, not in the preview panel.
   - **Batch Generate** (`#pane-batch`): mass generation. All its IDs are prefixed `batch` (`#batchFileInput`, `#batchSheet`, …). See "Mass generation" below.
@@ -119,7 +120,9 @@ The Create tab keeps its state inside the dashboard's jQuery ready closure:
 `window.WordWheel` exposes:
 
 - `toChars(text)` — NFC-normalized graphemes (`Intl.Segmenter`, `Array.from` fallback).
-- `extractWords(text)` — words from free text (see below).
+- `extractWords(text)` — `{ words, rejected }` from free text (see below).
+- `maxHidden(length, centralCharacter)` — most letters (0–3) a word of that length can hide while still showing at least one ring letter.
+- `checkGuess(puzzle, rawGuess)` — `"empty"`, `"correct"`, or `"wrong"` (NFC graphemes, locale lower-case, trimmed).
 - `buildPuzzle(settings)` — settings + a fresh random layout `{ startSlot, ringOrder, hidden: Set, solved }`.
 - `restorePuzzle(settings, { startSlot, ringOrder, hiddenIndexes })` — settings + that exact saved layout, or `null` if the layout doesn't fit: wrong lengths, repeated or out-of-range indexes, the hub letter in the ring or hidden, or an unknown direction.
 - `puzzleFromApi(apiPuzzle)` — the **only** API → puzzle conversion. It returns the saved wheel exactly, or `null` for a missing or invalid layout. Callers show an error for `null`; they never substitute a random layout.
@@ -129,14 +132,14 @@ The Create tab keeps its state inside the dashboard's jQuery ready closure:
 
 All functions take the puzzle as an argument (no page-level state), so one page can draw many wheels. `renderWheel` replaces the contents of a `.wheel` container (SVG ring plus tiles). Style wheels with `wheel.css` and size them by setting `--wheel-size` on the `.wheel` or an ancestor. `.wheel` sets `print-color-adjust: exact` so the blue hub prints.
 
-`extractWords` pulls words out of free text with `/[\p{L}\p{M}]+(?:[‌‍][\p{L}\p{M}]+)*/gu` after NFC normalization: runs of letters and combining marks, keeping zero-width joiners between letters. Spaces, punctuation, digits, and line breaks all act as separators, so word-per-line lists, comma-separated lists, and prose all work without format detection. Telugu vowel signs and virama are combining marks, so Telugu words stay whole. Scripts without spaces between words (Chinese, Japanese) would come out as whole phrases.
+`extractWords` splits NFC-normalized text into tokens: runs of letters, combining marks, digits, apostrophes (`'` `’` `ʼ`), hyphens, and zero-width joiners. Everything else (spaces, line breaks, commas, periods, quotes, brackets) separates tokens, so word-per-line lists, comma-separated lists, and prose all work without format detection. A token is a word only if it is letters and combining marks, with zero-width joiners allowed between letters — the same letters-only rule as the Create tab. Tokens with an apostrophe, hyphen, or digit inside (`doesn't`, `well-known`, `abc123`) are returned in `rejected` so the page can name them; tokens with no letters (`2024`) are ignored. Words are never split or repaired, so `children's` is rejected rather than becoming `children`. Telugu vowel signs and virama are combining marks, so Telugu words stay whole. Scripts without spaces between words (Chinese, Japanese) would come out as whole phrases.
 
 ## Mass generation (Batch Generate tab)
 
 Admin-only tab on `admin/dashboard.php`, logic in `admin/batch.js`. It turns a text file into a printable puzzle set. The flow is:
 
 1. **Import:** `.txt` only, at most 5 MB. The file is read in the browser (`File.arrayBuffer` + `TextDecoder`), as UTF-8 unless a UTF-16 byte-order mark is present. No server-side parsing.
-2. **Filter:** words are de-duplicated case-insensitively (first spelling wins) and filtered by grapheme length using the page's **Min/Max length** inputs. These default to 7–9 and are limited to 3–12 (`LENGTH_LIMITS`). The status line reports how many were too short, too long, or repeated.
+2. **Filter:** words are de-duplicated case-insensitively (first spelling wins) and filtered by grapheme length using the page's **Min/Max length** inputs. These default to 7–9 and are limited to 3–12 (`LENGTH_LIMITS`). The status line reports how many were too short, too long, or repeated, and how many tokens `extractWords` rejected (with up to 5 examples).
 3. **Pick:** words in range appear as checkboxes, with the first 100 checked. **Mass generate** is disabled when 0 or more than 100 are selected (`MAX_PUZZLES`).
 4. **Configure:** either "Same settings for every word" (direction, center character, hidden count) or "Randomize settings for each word". In both modes the hidden count is capped at ring size − 1, so short words always show at least one ring letter, and the capped value is what gets saved.
 5. **Generate:** builds each puzzle with `buildPuzzle` and renders a preview card per word into `#batchSheet` (heading, instructions, wheel, blank answer line, and a note with its settings). No answers are shown on screen.
@@ -144,6 +147,16 @@ Admin-only tab on `admin/dashboard.php`, logic in `admin/batch.js`. It turns a t
 7. **Save all (optional):** posts each puzzle to `api/save_puzzle.php` one at a time with its generated layout, so the saved wheel matches the printout. Names are `"<prefix> #<n>"` when a prefix is given, otherwise unnamed. Failures are listed per puzzle, and clicking **Save all** again retries only the unsaved ones. Changing the file, length range, or selection clears the sheet.
 
 Not covered yet: a global admin min/max setting for single-puzzle creation (the dashboard still uses 7–9), server-side length validation in `save_puzzle.php`, a single-request batch save endpoint, and file formats other than `.txt`.
+
+## Sandbox (`sandbox.html` + `sandbox.js`)
+
+A visitor-side practice page with no server calls. It is separate from the saved-puzzle "free play" mode on `index.html`.
+
+- **Word bank:** a textarea parsed with `extractWords` on every input, de-duplicated case-insensitively, and filtered by the length range. The status line reports words ready and words skipped (too short, too long, repeats, rejected tokens with up to 5 examples).
+- **Settings:** Min/Max length (3–12, default 7–9), direction (Random default), center letter (Yes default), hidden letters 0–3. Every bank word is at least `min` graphemes, so hidden options above `maxHidden(min, center)` are disabled with the reason in the label; a too-high choice is lowered and explained in `#sbHiddenNote`. Each built puzzle also caps `hiddenCount` at `maxHidden(word length, center)`.
+- **Play:** **Generate wheel** starts a fresh shuffled bag, deals a word, and collapses both setup cards. **New word** deals the next word (every word once before repeats; a refilled bag doesn't start with the word on screen). **New layout** keeps the word and re-reads direction, center, and hidden from the form. Check and Reveal use `checkGuess` and match the daily page's feedback. Editing the bank or length leaves the current wheel and refills the bag on the next deal.
+- **Persistence:** bank text and settings in `localStorage` under `wordWheel.sandbox`, wrapped in try/catch. The page works without it.
+- The setup cards' Hide/Show is a jQuery toggle with `aria-expanded`; the page does not load Bootstrap's JS.
 
 ## Puzzle API
 

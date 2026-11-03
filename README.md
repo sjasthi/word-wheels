@@ -33,6 +33,8 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
 - Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (wheel preview, publish/unpublish, scheduling, delete, and bulk print/delete)
 - Player page (site root) showing today's published, scheduled puzzle
 - **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with shared or randomized settings, and optionally save them all to the database
+- **Sandbox** (`sandbox.html`) — players paste their own word bank, choose length, direction, center letter, and hidden letters, and play wheels built from random words in the bank. Nothing is saved to the server.
+- Word lists (Batch Generate and Sandbox) keep letters-only words; words with apostrophes, hyphens, or numbers are skipped and listed so they can be fixed
 - Printing (browser print / Save as PDF) from Batch Generate or Manage Puzzles, with 1–8 puzzles per page and a solutions page at the end
 - One shared puzzle engine (`wheel.js` / `wheel.css`) used by every page, so a saved wheel looks the same everywhere: dashboard, preview, printout, and player page
 
@@ -93,7 +95,7 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 9. Click **Load saved puzzles** and pick one — the same wheel appears, and the configuration form fills in with that puzzle's settings
 ### Batch Generate tab
 
-1. Choose a `.txt` file. Any text works: one word per line, a comma-separated list, or a passage from a book. Punctuation, numbers, and spaces separate words, and repeated words are listed once.
+1. Choose a `.txt` file. Any text works: one word per line, a comma-separated list, or a passage from a book. Spaces, line breaks, and punctuation between words separate them, and repeated words are listed once. Words with an apostrophe, hyphen, or number inside (`doesn't`, `well-known`, `abc123`) are skipped and named in the status line; edit them to letters only (e.g. `children's` → `children`) if you want them.
 2. Set the min and max length (anywhere from 3 to 12). Words in range appear as checkboxes, with the first 100 selected.
 3. Pick "Same settings for every word" and set them, or "Randomize settings for each word"
 4. Click **Mass generate** to preview every puzzle
@@ -109,6 +111,17 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 ### Player page (site root)
 
 Shows today's published puzzle. Type a guess and click **Check**, or **Reveal** the answer.
+
+### Sandbox (`sandbox.html`)
+
+Linked from the bottom of the player page.
+
+1. Paste words into the **Word bank**: one per line, comma-separated, or a paragraph. The status line shows how many fit and which were skipped (too short, too long, repeats, or apostrophes/hyphens/numbers).
+2. In **Settings**, choose the word length (3–12), direction, center letter, and hidden letters. Hidden-letter choices that the shortest allowed word can't support are disabled, with the reason shown.
+3. Click **Generate wheel**. Both cards fold away so the word list isn't next to the wheel; click **Show** to open them again.
+4. Guess, **Reveal**, or use **New layout** (same word, current settings) and **New word** (next word from the bank). Every word comes up once before any repeats.
+
+A bank with a single word works as a custom puzzle. The bank and settings are remembered in this browser only.
 
 ---
 
@@ -138,6 +151,7 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 ## Known Limitations
 
 - Unsaved puzzles are lost on refresh, including a mass-generated set that hasn't been saved
+- The Sandbox word bank lives in the player's browser (`localStorage`); there is no teacher-managed bank yet
 - The save API doesn't check the admin session yet, and the list/load APIs return answers to anyone
 - Mass generate reads `.txt` files only. Languages written without spaces between words (Chinese, Japanese) come out as whole phrases rather than separate words.
 - Saved puzzles are always tagged with language `en` (no language picker yet)
