@@ -6,7 +6,7 @@
 // Expects: JSON body {
 //            name (optional), word, arrangement, direction,
 //            hidden_count, center_letter, language,
-//            start_slot, ring_order, hidden_indexes   (optional layout)
+//            start_slot, ring_order, hidden_indexes   (wheel layout)
 //          }
 // Returns: { success: true, id: <puzzle_id> }
 //       or { success: false, error: <message> }
@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = json_decode(file_get_contents('php://input'), true);
 
 // Validate required fields
-if (empty($data['word']) || empty($data['arrangement'])) {
+if (empty($data['word']) || empty($data['arrangement']) || !is_array($data['arrangement'])) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Missing required fields.']);
     exit;
@@ -64,32 +64,40 @@ if ($hidden_count < 0 || $hidden_count > 3) {
     exit;
 }
 
-// Optional wheel layout — all three fields are saved together or not at all
-$start_slot     = null;
-$ring_order     = null;
-$hidden_indexes = null;
-
-if (isset($data['start_slot'], $data['ring_order'], $data['hidden_indexes'])) {
-    $letter_count = count($data['arrangement']);
-    $ring_size    = $center_letter ? $letter_count - 1 : $letter_count;
-    $is_index     = function ($v) use ($letter_count) {
-        return is_int($v) && $v >= 0 && $v < $letter_count;
-    };
-
-    if (!is_int($data['start_slot']) || $data['start_slot'] < 0 || $data['start_slot'] >= $ring_size
-        || !is_array($data['ring_order']) || count($data['ring_order']) !== $ring_size
-        || count(array_filter($data['ring_order'], $is_index)) !== $ring_size
-        || !is_array($data['hidden_indexes']) || count($data['hidden_indexes']) !== $hidden_count
-        || count(array_filter($data['hidden_indexes'], $is_index)) !== $hidden_count) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid wheel layout.']);
-        exit;
-    }
-
-    $start_slot     = $data['start_slot'];
-    $ring_order     = json_encode(array_values($data['ring_order']));
-    $hidden_indexes = json_encode(array_values($data['hidden_indexes']));
+// Wheel layout (required) — saved with the puzzle so loading it always
+// shows the same wheel. Same rules as restorePuzzle() in wheel.js:
+// ring indexes skip the hub letter (index 0) when there is one, and
+// no index may repeat.
+if (!isset($data['start_slot'], $data['ring_order'], $data['hidden_indexes'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Missing wheel layout. Generate a wheel before saving.']);
+    exit;
 }
+
+$letter_count = count($data['arrangement']);
+$first_ring   = $center_letter ? 1 : 0;
+$ring_size    = $letter_count - $first_ring;
+$is_ring_index = function ($v) use ($first_ring, $letter_count) {
+    return is_int($v) && $v >= $first_ring && $v < $letter_count;
+};
+$is_valid_list = function ($list, $size) use ($is_ring_index) {
+    return is_array($list)
+        && count($list) === $size
+        && count(array_filter($list, $is_ring_index)) === $size
+        && count(array_unique($list)) === $size;
+};
+
+if (!is_int($data['start_slot']) || $data['start_slot'] < 0 || $data['start_slot'] >= $ring_size
+    || !$is_valid_list($data['ring_order'], $ring_size)
+    || !$is_valid_list($data['hidden_indexes'], $hidden_count)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Invalid wheel layout.']);
+    exit;
+}
+
+$start_slot     = $data['start_slot'];
+$ring_order     = json_encode(array_values($data['ring_order']));
+$hidden_indexes = json_encode(array_values($data['hidden_indexes']));
 
 try {
     $pdo = get_db();

@@ -30,9 +30,11 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
   - Saved list shows each puzzle's name, word, and a readable save date/time; the list refreshes and highlights the puzzle after saving
   - Loading a puzzle shows the exact same wheel that was saved (same starting position, letter order, and hidden letters)
   - Loading a puzzle also fills the **Create a puzzle** form with its word and settings, so **Generate wheel** recreates it with a fresh layout
-- Admin login and dashboard for publishing, scheduling, and deleting puzzles
+- Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (wheel preview, publish/unpublish, scheduling, delete, and bulk print/delete)
 - Player page (site root) showing today's published, scheduled puzzle
-- **Mass generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with shared or randomized settings, and print them one per page with a solutions page at the end (browser print / Save as PDF). Optionally save them all to the database.
+- **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with shared or randomized settings, and optionally save them all to the database
+- Printing (browser print / Save as PDF) from Batch Generate or Manage Puzzles, with 1–8 puzzles per page and a solutions page at the end
+- One shared puzzle engine (`wheel.js` / `wheel.css`) used by every page, so a saved wheel looks the same everywhere: dashboard, preview, printout, and player page
 
 ### Not yet implemented
 - Player streak tracking and limiting play to once per day
@@ -69,7 +71,7 @@ git clone https://github.com/sjasthi/word-wheels.git
 If your database was created from an older version of the schema, run the migrations in `sql/` once instead of re-importing:
 
 - `sql/migrate_add_name.sql` — adds the optional puzzle `name` column
-- `sql/migrate_add_layout.sql` — adds the saved wheel layout columns (`start_slot`, `ring_order`, `hidden_indexes`). Puzzles saved before this migration still load, but get a new random layout.
+- `sql/migrate_add_layout.sql` — adds the saved wheel layout columns (`start_slot`, `ring_order`, `hidden_indexes`). Every puzzle must have a layout, so delete and re-create any puzzles saved before this migration; they show an "invalid layout" message.
 
 The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, and `.css` files on every load, so edits show up without a hard refresh.
 
@@ -77,7 +79,7 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 
 ## How to Use
 
-### Admin dashboard (`admin/dashboard.php`)
+### Admin dashboard — Create Puzzle tab (`admin/dashboard.php`)
 
 1. Enter a word between 7 and 9 letters in the **Configuration** panel
 2. Select a direction — random (the default), clockwise, or anticlockwise
@@ -89,16 +91,20 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 7. Use **Reveal** to show the answer if stuck
 8. In the **Save & Load** panel on the right, optionally type a puzzle name and click **Save** to store the current wheel
 9. Click **Load saved puzzles** and pick one — the same wheel appears, and the configuration form fills in with that puzzle's settings
-10. In **Manage Puzzles**, publish a puzzle and give it today's date to make it the daily puzzle
-
-### Mass generate (`admin/batch.php`, linked from the dashboard header)
+### Batch Generate tab
 
 1. Choose a `.txt` file. Any text works: one word per line, a comma-separated list, or a passage from a book. Punctuation, numbers, and spaces separate words, and repeated words are listed once.
 2. Set the min and max length (anywhere from 3 to 12). Words in range appear as checkboxes, with the first 100 selected.
 3. Pick "Same settings for every word" and set them, or "Randomize settings for each word"
-4. Click **Mass generate** to see every puzzle, followed by a solutions list
-5. Click **Print / Save as PDF**. Each puzzle prints on its own page, and the solutions start on a new page.
+4. Click **Mass generate** to preview every puzzle
+5. Click **Print / Save as PDF**, choose how many puzzles per page (1–8), and print. The solutions start on a new page.
 6. Optionally enter a name prefix (e.g. "Animals" → "Animals #1", "Animals #2", …) and click **Save all to database**
+
+### Manage Puzzles tab
+
+1. Click a row to preview its wheel, set its scheduled date, publish/unpublish, print, or delete it
+2. Publish a puzzle and give it today's date to make it the daily puzzle
+3. Tick several rows to **Print selected** or **Delete selected**
 
 ### Player page (site root)
 

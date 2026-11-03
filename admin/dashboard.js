@@ -3,38 +3,12 @@ $(function () {
   const MAX_CHARS = 9;
 
   // Pull shared engine from wheel.js (window.WordWheel)
-  const { toChars, buildPuzzle, renderWheel } = window.WordWheel;
+  const { toChars, buildPuzzle, puzzleFromApi, puzzleToApi, apiError, renderWheel } =
+    window.WordWheel;
 
   // ── Puzzle state (Create tab) ──────────────────────────────
   let settings = null;
   let puzzle   = null;
-
-  // restorePuzzle is dashboard-specific (validates a saved layout against
-  // current settings before applying it). Not in wheel.js — kept here.
-  function restorePuzzle(s, layout) {
-    if (!layout) return null;
-    const { startSlot, ringOrder, hiddenIndexes } = layout;
-    const ringSize  = s.centralCharacter ? s.chars.length - 1 : s.chars.length;
-    const firstRing = s.centralCharacter ? 1 : 0;
-    const isRingIndex = (i) =>
-      Number.isInteger(i) && i >= firstRing && i < s.chars.length;
-
-    if (
-      !Number.isInteger(startSlot) || startSlot < 0 || startSlot >= ringSize ||
-      !Array.isArray(ringOrder) || ringOrder.length !== ringSize ||
-      new Set(ringOrder).size !== ringSize || !ringOrder.every(isRingIndex) ||
-      !Array.isArray(hiddenIndexes) || hiddenIndexes.length !== s.hiddenCount ||
-      !hiddenIndexes.every(isRingIndex)
-    ) return null;
-
-    return {
-      ...s,
-      startSlot,
-      ringOrder: [...ringOrder],
-      hidden: new Set(hiddenIndexes),
-      solved: false,
-    };
-  }
 
   // Convenience: render current puzzle into the Create tab wheel
   function render() { renderWheel(puzzle, $("#wheel")); }
@@ -45,8 +19,14 @@ $(function () {
     );
   }
 
-  function startPuzzle(savedLayout) {
-    puzzle = restorePuzzle(settings, savedLayout) || buildPuzzle(settings);
+  // Generate wheel / New layout: a fresh random layout from `settings`.
+  function startPuzzle() {
+    showPuzzle(buildPuzzle(settings));
+  }
+
+  // Put a built or loaded puzzle on the Create tab wheel, ready to play.
+  function showPuzzle(p) {
+    puzzle = p;
     render();
     $("#guessInput").val("").prop("disabled", false);
     $("#result").empty();
@@ -120,14 +100,6 @@ $(function () {
   });
 
   // ── Save / Load ────────────────────────────────────────────
-  const DEFAULT_LANGUAGE = "en";
-
-  function apiError(xhr, fallback) {
-    let body = xhr.responseJSON;
-    if (!body) { try { body = JSON.parse(xhr.responseText); } catch (_) { body = null; } }
-    return (body && body.error) || fallback;
-  }
-
   function showSavedStatus(type, message) {
     $("#savedStatus").html(
       $('<div class="alert py-2 mb-0"></div>').addClass("alert-" + type).text(message)
@@ -145,18 +117,7 @@ $(function () {
       method: "POST",
       contentType: "application/json",
       dataType: "json",
-      data: JSON.stringify({
-        name:          $("#nameInput").val().trim(),
-        word:          puzzle.chars.join(""),
-        arrangement:   puzzle.chars,
-        direction:     puzzle.direction,
-        hidden_count:  puzzle.hiddenCount,
-        center_letter: puzzle.centralCharacter,
-        start_slot:    puzzle.startSlot,
-        ring_order:    puzzle.ringOrder,
-        hidden_indexes:[...puzzle.hidden],
-        language:      DEFAULT_LANGUAGE,
-      }),
+      data: JSON.stringify(puzzleToApi(puzzle, $("#nameInput").val().trim())),
     })
       .done(function (res) {
         if (res && res.success) {
@@ -224,18 +185,16 @@ $(function () {
     $.ajax({ url: "../api/get_puzzle.php", method: "GET",
              data: { id: $item.data("id") }, dataType: "json" })
       .done(function (res) {
-        const p = res && res.success ? res.puzzle : null;
-        if (!p || !Array.isArray(p.arrangement) || !p.arrangement.length)
+        if (!res || !res.success || !res.puzzle)
           return showSavedStatus("danger", (res && res.error) || "That puzzle could not be loaded.");
+        const loaded = puzzleFromApi(res.puzzle);
+        if (!loaded)
+          return showSavedStatus("danger", "That puzzle's saved layout is invalid.");
 
-        settings = {
-          chars:            p.arrangement,
-          direction:        p.direction,
-          centralCharacter: p.center_letter,
-          hiddenCount:      p.hidden_count,
-        };
+        const { chars, direction, centralCharacter, hiddenCount } = loaded;
+        settings = { chars, direction, centralCharacter, hiddenCount };
         fillCreateForm(settings);
-        startPuzzle({ startSlot: p.start_slot, ringOrder: p.ring_order, hiddenIndexes: p.hidden_indexes });
+        showPuzzle(loaded);
 
         $item.addClass("active").attr("aria-current", "true")
              .siblings().removeClass("active").removeAttr("aria-current");
@@ -283,20 +242,26 @@ $(function () {
   });
 
   function renderPreview(id, p) {
-    const puzzleObj = {
-      chars:            p.arrangement,
-      direction:        p.direction,
-      centralCharacter: p.center_letter,
-      hiddenCount:      p.hidden_count,
-      startSlot:        p.start_slot  ?? Math.floor(Math.random() * (p.arrangement.length - (p.center_letter ? 1 : 0))),
-      ringOrder:        p.ring_order  ?? (p.center_letter
-                          ? Array.from({ length: p.arrangement.length - 1 }, (_, i) => i + 1)
-                          : Array.from({ length: p.arrangement.length },     (_, i) => i)),
-      hidden:           new Set(p.hidden_indexes || []),
-      solved:           false,
-    };
-    renderWheel(puzzleObj, $("#preview-wheel-" + id));
+    const preview = puzzleFromApi(p);
+    if (!preview) {
+      $("#preview-loading-" + id).text("This puzzle's saved layout is invalid.");
+      return;
+    }
+    renderWheel(preview, $("#preview-wheel-" + id));
     $("#preview-loading-" + id).addClass("d-none");
+  }
+
+  // API puzzles → print-ready puzzles (with names for the print labels).
+  // Warns about and skips any whose saved layout is invalid.
+  function printablePuzzles(apiPuzzles) {
+    const printable = [];
+    apiPuzzles.forEach(function (p) {
+      const built = puzzleFromApi(p);
+      if (built) printable.push({ ...built, name: p.name || null });
+    });
+    const skipped = apiPuzzles.length - printable.length;
+    if (skipped) alert(skipped + " puzzle(s) skipped: saved layout is invalid.");
+    return printable;
   }
 
   // ── Manage tab — publish / unpublish ──────────────────────
@@ -423,7 +388,8 @@ $(function () {
     e.stopPropagation();
     const id = $(this).data("id");
     if (!previewCache[id]) return;
-    openPrintModal([previewCache[id]]);
+    const printable = printablePuzzles([previewCache[id]]);
+    if (printable.length) openPrintModal(printable);
   });
 
   // ── Print — bulk from toolbar ──────────────────────────────
@@ -445,12 +411,13 @@ $(function () {
     });
 
     Promise.all(fetches).then(function (puzzles) {
-      const valid = puzzles.filter(Boolean);
-      if (valid.length) openPrintModal(valid);
+      const printable = printablePuzzles(puzzles.filter(Boolean));
+      if (printable.length) openPrintModal(printable);
     });
   });
 
   // ── Print modal — shared by manage tab and batch tab ──────
+  // Takes built puzzles (puzzleFromApi / buildPuzzle, optional .name).
   // batch.js calls window.openPrintModal(puzzles) to queue batch puzzles.
   let _printQueue = [];
   const printModal = new bootstrap.Modal(document.getElementById("printModal"));

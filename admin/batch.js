@@ -1,10 +1,10 @@
 $(function () {
-  const { toChars, extractWords, buildPuzzle, renderWheel } = window.WordWheel;
+  const { toChars, extractWords, buildPuzzle, puzzleToApi, apiError, renderWheel } =
+    window.WordWheel;
 
   const LENGTH_LIMITS = { min: 3, max: 12 }; // absolute range for the min/max inputs
   const MAX_PUZZLES = 100;
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
-  const DEFAULT_LANGUAGE = "en"; // no language picker in the UI yet
   const DIRECTIONS = ["random", "cw", "ccw"];
   const DIRECTION_LABELS = {
     random: "Random",
@@ -24,19 +24,6 @@ $(function () {
 
   function showStatus(selector, type, message) {
     $(selector).html(alertBox(type, document.createTextNode(message)));
-  }
-
-  // The endpoints answer { success:false, error } with a 4xx/5xx status.
-  function apiError(xhr, fallback) {
-    let body = xhr.responseJSON;
-    if (!body) {
-      try {
-        body = JSON.parse(xhr.responseText);
-      } catch (_) {
-        body = null;
-      }
-    }
-    return (body && body.error) || fallback;
   }
 
   // ---- Step 1: import words ----
@@ -315,18 +302,7 @@ $(function () {
         method: "POST",
         contentType: "application/json",
         dataType: "json",
-        data: JSON.stringify({
-          name: name,
-          word: p.chars.join(""),
-          arrangement: p.chars,
-          direction: p.direction,
-          hidden_count: p.hiddenCount,
-          center_letter: p.centralCharacter,
-          start_slot: p.startSlot,
-          ring_order: p.ringOrder,
-          hidden_indexes: [...p.hidden],
-          language: DEFAULT_LANGUAGE,
-        }),
+        data: JSON.stringify(puzzleToApi(p, name)),
       })
         .done(function (res) {
           if (res && res.success) resolve(res.id);

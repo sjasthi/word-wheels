@@ -82,12 +82,17 @@ Keep admin operations and visitor operations distinct in authorization and in UI
 
 ## Repository layout
 
-- `index.html` — the **player** page (site root). It loads today's published, scheduled puzzle from `api/get_daily.php` and offers guess and reveal only. Its engine code is inline in the page.
-- `admin/dashboard.php` + `admin/dashboard.js` — the **creator** page (session-protected). The top section is a three-column row on `lg` screens and up: **Configuration** (`col-lg-3`), the wheel preview (`col-lg-5`), and **Save & Load** (`col-lg-4`). Columns stack below `lg`. The Save & Load card holds the save form (`#saveForm`: optional `#nameInput` plus the submit button `#saveBtn`), the **Load saved puzzles** button, `#savedStatus`, and `#savedList`. Keep save/load controls in this card, not in the preview panel. Below it, **Manage Puzzles** is a server-rendered table for publish/unpublish, scheduling, and delete. The header links to **Mass generate**.
-- `admin/batch.php` + `admin/batch.js` — the **Mass generate** page (session-protected). See "Mass generation" below.
+- `index.html` — the **player** page (site root). It loads today's published, scheduled puzzle from `api/get_daily.php` and offers guess and reveal only. Uses `wheel.js` and `wheel.css`.
+- `admin/dashboard.php` — the admin page (session-protected), split into three Bootstrap tabs:
+  - **Create Puzzle** (`#pane-create`): a three-column row on `lg` screens and up — **Configuration** (`col-lg-3`), the wheel preview (`col-lg-5`), and **Save & Load** (`col-lg-4`). Columns stack below `lg`. The Save & Load card holds the save form (`#saveForm`: optional `#nameInput` plus the submit button `#saveBtn`), the **Load saved puzzles** button, `#savedStatus`, and `#savedList`. Keep save/load controls in this card, not in the preview panel.
+  - **Batch Generate** (`#pane-batch`): mass generation. All its IDs are prefixed `batch` (`#batchFileInput`, `#batchSheet`, …). See "Mass generation" below.
+  - **Manage Puzzles** (`#pane-manage`): server-rendered table. Clicking a row expands a detail row with a wheel preview, scheduled date, Publish/Unpublish, Print, and Delete. Row checkboxes drive a bulk toolbar (Print selected / Delete selected).
+  - **Print modal** (`#printModal`): asks for puzzles per page (1–8), then calls `printPuzzles`. Shared by Manage and Batch Generate.
+- `admin/dashboard.js` — Create tab, Save & Load, Manage tab, and the print modal (`window.openPrintModal(puzzles)`).
+- `admin/batch.js` — Batch Generate tab logic.
+- `admin/print.js` — `printPuzzles(puzzles, { perPage })`: opens a print window with the puzzles grouped `perPage` to a page, then a solutions page, and calls `print()`. Wheels are drawn with `WordWheel.renderWheel` and styled by linking `wheel.css`.
 - `admin/login.php`, `admin/logout.php` — admin session handling. Pages check `$_SESSION['admin']`.
-- `wheel.js` + `wheel.css` — shared puzzle engine (`window.WordWheel`) and wheel styles. Currently used only by `admin/batch.php`.
-- `script.js` — the old combined creator page script. Nothing loads it anymore; its logic now lives in `admin/dashboard.js`.
+- `wheel.js` + `wheel.css` — the shared puzzle engine (`window.WordWheel`) and wheel styles. Every page that shows a wheel uses them; there are no other copies of the layout or grapheme logic.
 - `api/` — JSON endpoints built on PDO. `db.php` exposes `get_db()` (utf8mb4, exceptions, `FETCH_ASSOC`, real prepared statements).
 - `sql/wordwheel_schema.sql` — MySQL schema for `users` and `puzzles`, plus a default admin seed. Fresh installs use this file.
 - `sql/migrate_*.sql` — one-time `ALTER TABLE` migrations for databases created from an older schema (`migrate_add_name.sql`, `migrate_add_layout.sql`). When adding a column, update `wordwheel_schema.sql` **and** add a matching migration.
@@ -95,17 +100,15 @@ Keep admin operations and visitor operations distinct in authorization and in UI
 
 The site must be served by PHP with MySQL (for example XAMPP or Bluehost). Every page now depends on the API or an admin session.
 
-The engine functions (`toChars`, `buildPuzzle`, `tilePosition`, rendering) are currently duplicated in `admin/dashboard.js`, the inline script in `index.html`, and `wheel.js`. Any change to layout or grapheme logic must be made in all three until those pages are moved onto `wheel.js`.
+Keep all puzzle-domain logic (layout, grapheme handling, API ↔ puzzle conversion, save payload) in `wheel.js`. Pages should call it rather than reimplement it.
 
-## Frontend puzzle engine contract
+## Create tab contract (`admin/dashboard.js`)
 
-`admin/dashboard.js` (the creator) keeps all state inside one jQuery ready closure:
+The Create tab keeps its state inside the dashboard's jQuery ready closure:
 
 - `settings = { chars, direction, centralCharacter, hiddenCount }` is the puzzle definition. `chars` is the target word's graphemes **in answer order**.
-- `buildPuzzle(settings)` derives a fresh random layout (`startSlot`, `ringOrder`, `hidden`, `solved`). `restorePuzzle(settings, layout)` rebuilds a puzzle from a saved layout `{ startSlot, ringOrder, hiddenIndexes }`, and returns `null` if the layout is missing or doesn't fit the settings. `render()` draws the wheel. `showResult(type, message)` writes a Bootstrap alert into `#result`.
-- `startPuzzle(savedLayout)` renders from `settings`. With a saved layout it shows that exact wheel (falling back to `buildPuzzle` when `restorePuzzle` returns `null`, e.g. puzzles saved before layouts were stored). With no argument (Generate wheel, New layout) it builds a new random layout.
-- Treat `buildPuzzle`, `restorePuzzle`, `startPuzzle`, `render`, and `showResult` as stable. Add features around them rather than changing them.
-- To show a puzzle loaded from the database, set `settings`, call `fillCreateForm(settings)` so the **Create a puzzle** form mirrors it, then call `startPuzzle({ startSlot, ringOrder, hiddenIndexes })` with the saved layout fields.
+- `startPuzzle()` builds a fresh random layout from `settings` (Generate wheel, New layout). `showPuzzle(puzzle)` puts a built or loaded puzzle on the wheel and resets the guess UI. `render()` redraws the current puzzle. `showResult(type, message)` writes a Bootstrap alert into `#result`.
+- To show a puzzle loaded from the database: `puzzleFromApi(res.puzzle)`. If it returns `null`, report an invalid layout. Otherwise set `settings` from it, call `fillCreateForm(settings)` so the Configuration form mirrors it, then `showPuzzle(loaded)`.
 - `loadSavedPuzzles(activeId)` fetches and renders the saved list and marks `activeId` as active. After a successful save, the list refreshes with the new puzzle highlighted and the name field clears.
 - Saved-list items show the puzzle name (or an italic "Unnamed"), then the word and a localized save date/time (`formatSavedDate`). Do not show the database `id`, direction, hidden count, or draft/published status in the main-page list; the `id` is only kept on the element for loading.
 - `#result` sits inside `#puzzleArea`, which stays hidden until a puzzle exists. Saved-puzzles messages (including save success/failure) go to `#savedStatus` through `showSavedStatus`, not `#result`.
@@ -113,20 +116,31 @@ The engine functions (`toChars`, `buildPuzzle`, `tilePosition`, rendering) are c
 
 ## Shared engine (`wheel.js`)
 
-`window.WordWheel` exposes `toChars(text)`, `extractWords(text)`, `buildPuzzle(settings)`, `tilePosition(puzzle, charIndex)`, and `renderWheel(puzzle, $wheel)`. Unlike the closure versions, these take the puzzle as an argument instead of reading a page-level `puzzle`, so one page can draw many wheels. `renderWheel` replaces the contents of a `.wheel` container (SVG ring plus tiles). Style wheels with `wheel.css` and size them by setting `--wheel-size` on the `.wheel` or an ancestor. `.wheel` sets `print-color-adjust: exact` so the blue hub prints.
+`window.WordWheel` exposes:
+
+- `toChars(text)` — NFC-normalized graphemes (`Intl.Segmenter`, `Array.from` fallback).
+- `extractWords(text)` — words from free text (see below).
+- `buildPuzzle(settings)` — settings + a fresh random layout `{ startSlot, ringOrder, hidden: Set, solved }`.
+- `restorePuzzle(settings, { startSlot, ringOrder, hiddenIndexes })` — settings + that exact saved layout, or `null` if the layout doesn't fit: wrong lengths, repeated or out-of-range indexes, the hub letter in the ring or hidden, or an unknown direction.
+- `puzzleFromApi(apiPuzzle)` — the **only** API → puzzle conversion. It returns the saved wheel exactly, or `null` for a missing or invalid layout. Callers show an error for `null`; they never substitute a random layout.
+- `puzzleToApi(puzzle, name)` — the **only** puzzle → `save_puzzle.php` body, layout included.
+- `apiError(xhr, fallback)` — reads `error` from a failed API response.
+- `tilePosition(puzzle, charIndex)` and `renderWheel(puzzle, $wheel)`.
+
+All functions take the puzzle as an argument (no page-level state), so one page can draw many wheels. `renderWheel` replaces the contents of a `.wheel` container (SVG ring plus tiles). Style wheels with `wheel.css` and size them by setting `--wheel-size` on the `.wheel` or an ancestor. `.wheel` sets `print-color-adjust: exact` so the blue hub prints.
 
 `extractWords` pulls words out of free text with `/[\p{L}\p{M}]+(?:[‌‍][\p{L}\p{M}]+)*/gu` after NFC normalization: runs of letters and combining marks, keeping zero-width joiners between letters. Spaces, punctuation, digits, and line breaks all act as separators, so word-per-line lists, comma-separated lists, and prose all work without format detection. Telugu vowel signs and virama are combining marks, so Telugu words stay whole. Scripts without spaces between words (Chinese, Japanese) would come out as whole phrases.
 
-## Mass generation (`admin/batch.php`)
+## Mass generation (Batch Generate tab)
 
-Admin-only page that turns a text file into a printable puzzle set. The flow is:
+Admin-only tab on `admin/dashboard.php`, logic in `admin/batch.js`. It turns a text file into a printable puzzle set. The flow is:
 
 1. **Import:** `.txt` only, at most 5 MB. The file is read in the browser (`File.arrayBuffer` + `TextDecoder`), as UTF-8 unless a UTF-16 byte-order mark is present. No server-side parsing.
 2. **Filter:** words are de-duplicated case-insensitively (first spelling wins) and filtered by grapheme length using the page's **Min/Max length** inputs. These default to 7–9 and are limited to 3–12 (`LENGTH_LIMITS`). The status line reports how many were too short, too long, or repeated.
 3. **Pick:** words in range appear as checkboxes, with the first 100 checked. **Mass generate** is disabled when 0 or more than 100 are selected (`MAX_PUZZLES`).
 4. **Configure:** either "Same settings for every word" (direction, center character, hidden count) or "Randomize settings for each word". In both modes the hidden count is capped at ring size − 1, so short words always show at least one ring letter, and the capped value is what gets saved.
-5. **Generate:** builds each puzzle with `buildPuzzle` and renders `#sheet`. The sheet has one `section.puzzle` per word (heading, instructions, wheel, blank answer line) followed by a `section.solutions` numbered list of answers. The screen view matches the printout: a single column in the same order. A screen-only `.no-print` note under each wheel shows its settings.
-6. **Print:** `window.print()`. Print CSS hides `.no-print`, prints one puzzle per page (`break-after: page`), and starts the solutions on a new page. Answers must appear only in the solutions section.
+5. **Generate:** builds each puzzle with `buildPuzzle` and renders a preview card per word into `#batchSheet` (heading, instructions, wheel, blank answer line, and a note with its settings). No answers are shown on screen.
+6. **Print:** **Print / Save as PDF** passes the generated puzzles to `window.openPrintModal`. The modal asks for puzzles per page, and `printPuzzles` opens a print window with the puzzles then a solutions page. Answers must appear only in the solutions section.
 7. **Save all (optional):** posts each puzzle to `api/save_puzzle.php` one at a time with its generated layout, so the saved wheel matches the printout. Names are `"<prefix> #<n>"` when a prefix is given, otherwise unnamed. Failures are listed per puzzle, and clicking **Save all** again retries only the unsaved ones. Changing the file, length range, or selection clears the sheet.
 
 Not covered yet: a global admin min/max setting for single-puzzle creation (the dashboard still uses 7–9), server-side length validation in `save_puzzle.php`, a single-request batch save endpoint, and file formats other than `.txt`.
@@ -137,7 +151,7 @@ Every endpoint returns JSON shaped as `{ success: true, ... }` or `{ success: fa
 
 | Endpoint | Method | Input | Success payload |
 |---|---|---|---|
-| `api/save_puzzle.php` | POST JSON | `word, arrangement, direction, hidden_count, center_letter, language`; optional `name`; optional layout `start_slot, ring_order, hidden_indexes` | `id` |
+| `api/save_puzzle.php` | POST JSON | `word, arrangement, direction, hidden_count, center_letter, language, start_slot, ring_order, hidden_indexes`; optional `name`. Build it with `WordWheel.puzzleToApi`. | `id` |
 | `api/get_all.php` | GET | optional `?status=draft\|published` | `puzzles[]` (`id, name, word, direction, hidden_count, center_letter, language, status, scheduled_date, created_date`; no arrangement or layout) |
 | `api/get_puzzle.php` | GET | `?id=` | `puzzle` with `name`, decoded `arrangement` array, and layout fields; any status (404 if the id doesn't exist) |
 | `api/get_daily.php` | GET | none | today's published, scheduled `puzzle`, including layout fields |
@@ -147,8 +161,13 @@ Every endpoint returns JSON shaped as `{ success: true, ... }` or `{ success: fa
 `save_puzzle.php` validation:
 
 - `name` is trimmed; blank becomes `NULL` (shown as "Unnamed"). Longer than 100 characters → 400.
-- The three layout fields are saved together or not at all. If all three are sent, they must fit the puzzle (`start_slot` within the ring size, `ring_order` length equal to the ring size, `hidden_indexes` length equal to `hidden_count`, all indexes inside `arrangement`), or the request fails with 400 `Invalid wheel layout.`
-- On read, layout fields are `null` for puzzles saved without a layout; `start_slot` is cast to int and the JSON columns are decoded to arrays.
+- `arrangement` must be an array.
+- The layout is **required**: a puzzle can only be saved after a wheel has been generated. Missing layout fields → 400 `Missing wheel layout…`.
+- The layout must fit the puzzle, using the same rules as `restorePuzzle`, or the request fails with 400 `Invalid wheel layout.`:
+  - `start_slot` within the ring size
+  - `ring_order` has exactly the ring's indexes (no repeats; excludes index 0 when there is a center letter)
+  - `hidden_indexes` has `hidden_count` distinct ring indexes
+- On read, `start_slot` is cast to int and the JSON columns are decoded to arrays. The columns are still nullable in MySQL, but every saved puzzle has a layout.
 
 Field mapping between the API (snake_case) and the frontend `settings` (camelCase):
 
@@ -158,7 +177,7 @@ Field mapping between the API (snake_case) and the frontend `settings` (camelCas
 - `hidden_count` ↔ `hiddenCount` (0–3)
 - `center_letter` ↔ `centralCharacter`
 - `name` comes from `#nameInput`; it is metadata only and not part of `settings`
-- `start_slot` ↔ `puzzle.startSlot`, `ring_order` ↔ `puzzle.ringOrder`, `hidden_indexes` ↔ `[...puzzle.hidden]` (a `Set` on the frontend). These describe one rendered wheel. Save them from `puzzle`, not `settings`, and pass them back as `{ startSlot, ringOrder, hiddenIndexes }` when loading.
+- `start_slot` ↔ `puzzle.startSlot`, `ring_order` ↔ `puzzle.ringOrder`, `hidden_indexes` ↔ `[...puzzle.hidden]` (a `Set` on the frontend). These describe one rendered wheel. `puzzleToApi` saves them from the built puzzle (not `settings`), and `puzzleFromApi` reads them back.
 - `language` has no UI yet. The frontend sends `"en"`.
 
 ### Current scope: admin and player split
@@ -195,7 +214,7 @@ For PHP/MySQL features, also verify server-side validation, parameterized querie
 
 ## Project roadmap awareness
 
-In place: the MySQL schema and puzzle API, the admin creator dashboard with save/load and puzzle management, a player page for the daily puzzle, and mass generation of up to 100 puzzles from a text file with browser-print PDF output. Still open: player streak tracking (one play per day), a global admin min/max length setting, and the security gaps listed above. Planned work proceeds toward:
+In place: the MySQL schema and puzzle API, the tabbed admin dashboard (create with save/load, batch generation of up to 100 puzzles from a text file, and puzzle management with preview, scheduling, and bulk actions), browser-print PDF output with 1–8 puzzles per page, a player page for the daily puzzle, and a single shared engine in `wheel.js`. Still open: player streak tracking (one play per day), a global admin min/max length setting, and the security gaps listed above. Planned work proceeds toward:
 
 1. Remaining wheel configurations and UI improvements.
 2. MySQL persistence and an admin interface.
