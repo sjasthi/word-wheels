@@ -1,14 +1,27 @@
 <?php
 // ============================================================
-// Word Wheel — Get Daily Puzzle Endpoint
+// Word Wheel — Get Daily Puzzles Endpoint
 // ============================================================
 // Method:  GET
-// Expects: nothing — uses server's current date automatically
-// Returns: { success: true, puzzle: { ... } }
-//       or { success: false, error: 'No puzzle today.' }
+// Expects: nothing — uses the server's current date
+// Returns: { success: true,
+//            date: "YYYY-MM-DD",           // the server's "today"
+//            previous_date: "YYYY-MM-DD",  // most recent earlier day that
+//                                          // had published puzzles, or null
+//            puzzles: [ { ... }, ... ] }   // today's published puzzles,
+//                                          // oldest first; may be empty
+//       or { success: false, error: <message> }
+//
+// An empty puzzles list is not an error: the player page shows free
+// play instead. The server's date is used (not the player's clock) so
+// progress and streaks agree for everyone. previous_date lets the
+// player page keep a streak going across days with no puzzles.
 // ============================================================
 
 require_once 'db.php';
+require_once 'player_puzzle.php';
+
+header('Content-Type: application/json; charset=utf-8');
 
 // Only accept GET requests
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -18,39 +31,39 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    $pdo  = get_db();
+    $pdo   = get_db();
+    $today = $pdo->query("SELECT CURDATE()")->fetchColumn();
+
+    // ORDER BY id keeps the order fixed, so "puzzle 2" is always the
+    // same puzzle (the player's saved progress depends on it).
     $stmt = $pdo->prepare("
-        SELECT id, word, arrangement, direction, hidden_count,
-               center_letter, start_slot, ring_order, hidden_indexes,
-               language, scheduled_date
+        SELECT " . PLAYER_PUZZLE_COLUMNS . "
         FROM puzzles
-        WHERE scheduled_date = CURDATE()
+        WHERE scheduled_date = ?
           AND status = 'published'
-        LIMIT 1
+        ORDER BY id
     ");
-    $stmt->execute();
-    $puzzle = $stmt->fetch();
+    $stmt->execute([$today]);
+    $puzzles = array_map('player_puzzle', $stmt->fetchAll());
 
-    if (!$puzzle) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'No puzzle scheduled for today.']);
-        exit;
-    }
+    $stmt = $pdo->prepare("
+        SELECT MAX(scheduled_date)
+        FROM puzzles
+        WHERE scheduled_date < ?
+          AND status = 'published'
+    ");
+    $stmt->execute([$today]);
+    $previous = $stmt->fetchColumn() ?: null;
 
-    // Decode arrangement from JSON string back to array
-    $puzzle['arrangement']   = json_decode($puzzle['arrangement']);
-    $puzzle['center_letter'] = (bool)$puzzle['center_letter'];
-    $puzzle['hidden_count']  = (int)$puzzle['hidden_count'];
-
-    // Saved wheel layout (null for older puzzles)
-    $puzzle['start_slot']     = $puzzle['start_slot'] === null ? null : (int)$puzzle['start_slot'];
-    $puzzle['ring_order']     = $puzzle['ring_order'] === null ? null : json_decode($puzzle['ring_order']);
-    $puzzle['hidden_indexes'] = $puzzle['hidden_indexes'] === null ? null : json_decode($puzzle['hidden_indexes']);
-
-    echo json_encode(['success' => true, 'puzzle' => $puzzle]);
+    echo json_encode([
+        'success'       => true,
+        'date'          => $today,
+        'previous_date' => $previous,
+        'puzzles'       => $puzzles,
+    ]);
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Failed to retrieve daily puzzle.']);
+    echo json_encode(['success' => false, 'error' => 'Failed to retrieve daily puzzles.']);
 }
 ?>

@@ -9,30 +9,67 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"
     />
     <link rel="stylesheet" href="wheel.css" />
+    <style>
+      /* Daily puzzle pills: one per puzzle, colored by status */
+      .ww-pill {
+        min-width: 2.5rem;
+      }
+      .ww-pill.is-current {
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.4);
+      }
+      .ww-arrow {
+        width: 2.25rem;
+      }
+    </style>
   </head>
   <body class="bg-light">
     <div class="container py-4" style="max-width: 600px">
       <h1 class="h3 mb-1 text-center">Word Wheel</h1>
-      <p class="text-muted text-center mb-4">
+      <p class="text-muted text-center mb-2">
         Read the letters sequentially around the wheel to find the hidden word.
+      </p>
+      <p class="text-center mb-4" style="min-height: 1.75rem">
+        <span id="streakBadge" class="badge rounded-pill text-bg-warning d-none"></span>
       </p>
 
       <div class="card shadow-sm">
         <div class="card-body text-center py-4">
 
+          <!-- Free play header: counter + way back to the daily puzzles -->
+          <div id="freeBar" class="d-none d-flex justify-content-between align-items-center mb-3">
+            <button id="backToDailyBtn" class="btn btn-link btn-sm p-0" type="button">
+              ← Back to today's puzzles
+            </button>
+            <span id="freeCounter" class="badge rounded-pill text-bg-primary"></span>
+          </div>
+
           <!-- Loading state -->
           <div id="loadingState" class="text-muted my-5">
             <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
-            Loading today's puzzle…
+            <span id="loadingText">Loading today's puzzles…</span>
           </div>
 
-          <!-- No puzzle today -->
-          <div id="emptyState" class="d-none my-5">
-            <p class="text-muted mb-0">No puzzle scheduled for today. Check back tomorrow!</p>
+          <!-- Message state: no puzzle today, nothing for free play, or an error -->
+          <div id="messageState" class="d-none my-5">
+            <p id="messageText" class="text-muted"></p>
+            <button id="startFreeFromEmptyBtn" class="btn btn-primary d-none" type="button">
+              Play free play →
+            </button>
           </div>
 
-          <!-- Puzzle area -->
-          <div id="puzzleArea" class="d-none">
+          <!-- Puzzle area (daily and free play share it) -->
+          <div id="playArea" class="d-none">
+
+            <!-- Daily navigation: arrows + one pill per puzzle (hidden for a single puzzle) -->
+            <nav id="dailyNav" class="d-none mb-3" aria-label="Today's puzzles">
+              <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+                <button id="prevBtn" class="btn btn-sm btn-outline-secondary ww-arrow" type="button" aria-label="Previous puzzle">‹</button>
+                <div id="pills" class="d-flex flex-wrap justify-content-center gap-2"></div>
+                <button id="nextArrowBtn" class="btn btn-sm btn-outline-secondary ww-arrow" type="button" aria-label="Next puzzle">›</button>
+              </div>
+              <p id="dailyProgress" class="small text-muted mt-2 mb-0"></p>
+            </nav>
+
             <div id="wheel" class="wheel">
               <svg viewBox="0 0 100 100" aria-hidden="true"></svg>
             </div>
@@ -52,26 +89,30 @@
                   placeholder="Type the word"
                   aria-label="Your answer"
                 />
-                <button class="btn btn-success" type="submit">Check</button>
+                <button id="checkBtn" class="btn btn-success" type="submit">Check</button>
               </div>
             </form>
 
             <div class="mt-3 d-flex gap-2 justify-content-center">
-              <button
-                id="revealBtn"
-                class="btn btn-sm btn-outline-secondary"
-                type="button"
-              >
+              <button id="revealBtn" class="btn btn-sm btn-outline-secondary" type="button">
                 Reveal
+              </button>
+              <button id="nextBtn" class="btn btn-sm btn-outline-primary" type="button">
+                Skip
               </button>
             </div>
 
-            <div
-              id="result"
-              class="mt-3"
-              role="status"
-              aria-live="polite"
-            ></div>
+            <div id="result" class="mt-3" role="status" aria-live="polite"></div>
+
+            <!-- Shown once every daily puzzle is solved or revealed -->
+            <div id="dailyDone" class="d-none mt-4 pt-3 border-top">
+              <p class="h5 mb-2">🎉 All done for today!</p>
+              <p id="dailySummary" class="mb-1"></p>
+              <p id="dailyStreakNote" class="small text-muted"></p>
+              <button id="startFreeBtn" class="btn btn-primary" type="button">
+                Keep playing — free play →
+              </button>
+            </div>
           </div>
 
         </div>
@@ -82,78 +123,439 @@
     <script src="wheel.js"></script>
     <script>
     $(function () {
-      const { toChars, puzzleFromApi, renderWheel } = window.WordWheel;
+      const { toChars, buildPuzzle, puzzleFromApi, renderWheel } = window.WordWheel;
 
-      let puzzle = null;
+      // ==========================================================
+      // Saved progress (this browser only)
+      // ==========================================================
+      // {
+      //   days:   { "2026-11-03": { "12": "solved", "15": "revealed" } },
+      //   streak: { current: 3, best: 5, lastDate: "2026-11-02" }
+      // }
+      // Dates come from the server, so every player shares one "today".
+      // A day counts toward the streak once any daily puzzle is solved
+      // without Reveal. Free play is never saved and never counts.
+      const STORE_KEY = "wordwheel.player.v1";
+      const DAYS_KEPT = 30;
 
-      function render() {
-        renderWheel(puzzle, $("#wheel"));
+      function loadStore() {
+        const empty = { days: {}, streak: { current: 0, best: 0, lastDate: null } };
+        try {
+          const s = JSON.parse(localStorage.getItem(STORE_KEY));
+          if (s && typeof s === "object") {
+            return {
+              days: s.days && typeof s.days === "object" ? s.days : {},
+              streak: s.streak && typeof s.streak === "object" ? s.streak : empty.streak,
+            };
+          }
+        } catch (_) {
+          // storage blocked or corrupt: play without saving
+        }
+        return empty;
+      }
+
+      function saveStore() {
+        // keep only the most recent days so the record stays small
+        Object.keys(store.days)
+          .sort()
+          .slice(0, -DAYS_KEPT)
+          .forEach((d) => delete store.days[d]);
+        try {
+          localStorage.setItem(STORE_KEY, JSON.stringify(store));
+        } catch (_) {
+          // storage blocked: progress lasts until the page closes
+        }
+      }
+
+      const store = loadStore();
+
+      // ==========================================================
+      // State
+      // ==========================================================
+      let today = null;        // server date, "YYYY-MM-DD"
+      let previousDate = null; // most recent earlier day with puzzles
+      let daily = [];          // [{ id, puzzle }] in server order
+      let current = 0;         // index into daily
+      let mode = "daily";      // "daily" | "free"
+
+      const free = {
+        queue: [],        // [{ id, puzzle }] not yet shown
+        seen: new Set(),  // ids shown this session (sent as ?exclude=)
+        item: null,       // { id, puzzle } on screen
+        status: null,     // null | "solved" | "revealed"
+        solvedCount: 0,
+        notice: "",       // one-off message shown with the next puzzle
+      };
+
+      // ==========================================================
+      // Helpers
+      // ==========================================================
+
+      // API row → playable puzzle. Puzzles saved before the layout
+      // migration have no saved layout, so they get a fresh one.
+      function toPlayable(p) {
+        const saved = puzzleFromApi(p);
+        if (saved) return saved;
+        if (!p || !Array.isArray(p.arrangement) || p.arrangement.length < 3) return null;
+        const central = !!p.center_letter;
+        const ringSize = p.arrangement.length - (central ? 1 : 0);
+        return buildPuzzle({
+          chars: p.arrangement,
+          direction: ["cw", "ccw", "random"].includes(p.direction) ? p.direction : "cw",
+          centralCharacter: central,
+          hiddenCount: Math.max(0, Math.min(parseInt(p.hidden_count, 10) || 0, ringSize - 1)),
+        });
+      }
+
+      function toItems(rows) {
+        return (rows || [])
+          .map((p) => ({ id: p && p.id, puzzle: toPlayable(p) }))
+          .filter((item) => item.id && item.puzzle);
+      }
+
+      function answerOf(puzzle) {
+        return puzzle.chars.join("");
+      }
+
+      // Tiles are drawn in capitals, so show answers the same way
+      function displayAnswer(puzzle) {
+        return answerOf(puzzle).toLocaleUpperCase();
+      }
+
+      function dailyStatus(id) {
+        const day = store.days[today];
+        return (day && day[id]) || null;
+      }
+
+      function setDailyStatus(id, status) {
+        (store.days[today] = store.days[today] || {})[id] = status;
+        if (status === "solved") extendStreak();
+        saveStore();
+      }
+
+      // Streak continues if the last counted day was the most recent
+      // earlier day that had puzzles, so days with nothing scheduled
+      // don't break it.
+      function streakIsAlive() {
+        const s = store.streak;
+        return !!s.lastDate && (s.lastDate === today || s.lastDate === previousDate);
+      }
+
+      function extendStreak() {
+        const s = store.streak;
+        if (s.lastDate === today) return;
+        s.current = streakIsAlive() ? (s.current || 0) + 1 : 1;
+        s.best = Math.max(s.best || 0, s.current);
+        s.lastDate = today;
+      }
+
+      function currentStreak() {
+        return streakIsAlive() ? store.streak.current || 0 : 0;
+      }
+
+      function solvedToday() {
+        return daily.some((d) => dailyStatus(d.id) === "solved");
+      }
+
+      // Next daily puzzle that isn't finished, searching forward from
+      // `from` and wrapping around; -1 when every other one is done.
+      function nextUnfinished(from) {
+        for (let k = 1; k < daily.length; k++) {
+          const i = (from + k) % daily.length;
+          if (!dailyStatus(daily[i].id)) return i;
+        }
+        return -1;
       }
 
       function showResult(type, message) {
         $("#result").html(
-          $('<div class="alert py-2 mb-0"></div>')
-            .addClass("alert-" + type)
-            .text(message)
+          $('<div class="alert py-2 mb-0"></div>').addClass("alert-" + type).text(message),
         );
       }
 
-      // Load today's daily puzzle
-      $.ajax({
-        url: "api/get_daily.php",
-        method: "GET",
-        dataType: "json",
-      })
+      function showSection(name) {
+        $("#loadingState").toggleClass("d-none", name !== "loading");
+        $("#messageState").toggleClass("d-none", name !== "message");
+        $("#playArea").toggleClass("d-none", name !== "play");
+      }
+
+      function showLoading(text) {
+        $("#loadingText").text(text);
+        showSection("loading");
+      }
+
+      function showMessage(text, offerFreePlay) {
+        $("#messageText").text(text);
+        $("#startFreeFromEmptyBtn").toggleClass("d-none", !offerFreePlay);
+        showSection("message");
+      }
+
+      // ==========================================================
+      // Rendering
+      // ==========================================================
+
+      function renderStreak() {
+        const n = currentStreak();
+        $("#streakBadge")
+          .toggleClass("d-none", n === 0)
+          .text(`🔥 ${n}-day streak`);
+      }
+
+      function renderDailyNav() {
+        const many = daily.length > 1;
+        $("#dailyNav").toggleClass("d-none", mode !== "daily" || !many);
+        if (!many) return;
+
+        const $pills = $("#pills").empty();
+        daily.forEach(function (d, i) {
+          const status = dailyStatus(d.id);
+          const label =
+            `Puzzle ${i + 1}` +
+            (status === "solved" ? ", solved" : status === "revealed" ? ", revealed" : "");
+          $pills.append(
+            $('<button type="button" class="btn btn-sm rounded-pill ww-pill"></button>')
+              .addClass(
+                status === "solved"
+                  ? "btn-success"
+                  : status === "revealed"
+                    ? "btn-secondary"
+                    : "btn-outline-primary",
+              )
+              .toggleClass("is-current", i === current)
+              .attr({ "aria-label": label, "aria-current": i === current ? "step" : null })
+              .text((status === "solved" ? "✓ " : "") + (i + 1))
+              .on("click", () => goToDaily(i)),
+          );
+        });
+
+        $("#prevBtn").prop("disabled", current === 0);
+        $("#nextArrowBtn").prop("disabled", current === daily.length - 1);
+
+        const done = daily.filter((d) => dailyStatus(d.id)).length;
+        $("#dailyProgress").text(`${done} of ${daily.length} puzzles completed today`);
+      }
+
+      function renderDailyDone() {
+        const allDone = mode === "daily" && daily.every((d) => dailyStatus(d.id));
+        $("#dailyDone").toggleClass("d-none", !allDone);
+        if (!allDone) return;
+
+        const solved = daily.filter((d) => dailyStatus(d.id) === "solved").length;
+        const revealed = daily.length - solved;
+        $("#dailySummary").text(
+          daily.length === 1
+            ? solved ? "You solved today's puzzle." : "You revealed today's puzzle."
+            : `You solved ${solved} and revealed ${revealed}.`,
+        );
+        $("#dailyStreakNote").text(
+          solvedToday()
+            ? `🔥 Streak: ${currentStreak()} day${currentStreak() === 1 ? "" : "s"} ` +
+                `(best ${store.streak.best || currentStreak()})`
+            : "Solve a daily puzzle without Reveal to grow your streak. Try again tomorrow!",
+        );
+      }
+
+      // Draw whatever puzzle the current mode is showing.
+      function render() {
+        const isDaily = mode === "daily";
+        const item = isDaily ? daily[current] : free.item;
+        const status = isDaily ? dailyStatus(item.id) : free.status;
+        const puzzle = item.puzzle;
+
+        puzzle.solved = !!status; // finished puzzles show every letter
+        renderWheel(puzzle, $("#wheel"));
+
+        $("#guessInput").prop("disabled", !!status);
+        $("#checkBtn").prop("disabled", !!status);
+        $("#revealBtn").toggleClass("d-none", !!status);
+
+        if (status === "solved") {
+          showResult("success", `Correct! 🎉 The word is ${displayAnswer(puzzle)}.`);
+        } else if (status === "revealed") {
+          showResult("secondary", `Answer: ${displayAnswer(puzzle)}`);
+        }
+
+        // Skip while playing, Next once finished. In daily mode it goes
+        // to the next unfinished puzzle and hides when there isn't one.
+        const target = isDaily ? nextUnfinished(current) : 0;
+        $("#nextBtn")
+          .text(status ? "Next puzzle →" : "Skip")
+          .toggleClass("btn-primary", !!status)
+          .toggleClass("btn-outline-primary", !status)
+          .toggleClass("d-none", target === -1);
+
+        $("#freeBar").toggleClass("d-none", isDaily);
+        $("#freeCounter").text(`Free play · ${free.solvedCount} solved`);
+
+        renderDailyNav();
+        renderDailyDone();
+        renderStreak();
+        showSection("play");
+      }
+
+      // ==========================================================
+      // Daily puzzles
+      // ==========================================================
+
+      function goToDaily(i) {
+        mode = "daily";
+        current = i;
+        $("#guessInput").val("");
+        $("#result").empty();
+        render();
+      }
+
+      function showDaily() {
+        if (daily.length) {
+          // land on the first unfinished puzzle (or the first one)
+          const first = daily.findIndex((d) => !dailyStatus(d.id));
+          goToDaily(first === -1 ? 0 : first);
+        } else {
+          mode = "daily";
+          $("#freeBar").addClass("d-none");
+          renderStreak();
+          showMessage(
+            "There's no daily puzzle today. Check back tomorrow — or keep playing with free play!",
+            true,
+          );
+        }
+      }
+
+      showLoading("Loading today's puzzles…");
+      $.ajax({ url: "api/get_daily.php", method: "GET", dataType: "json" })
         .done(function (res) {
-          $("#loadingState").addClass("d-none");
-
-          if (!res || !res.success || !res.puzzle) {
-            $("#emptyState").removeClass("d-none");
-            return;
+          if (!res || !res.success) {
+            return showMessage("Today's puzzles couldn't be loaded. Please check back later.", false);
           }
-
-          puzzle = puzzleFromApi(res.puzzle);
-          if (!puzzle) {
-            $("#emptyState p").text("Today's puzzle couldn't be loaded. Please check back later.");
-            $("#emptyState").removeClass("d-none");
-            return;
+          today = res.date;
+          previousDate = res.previous_date || null;
+          daily = toItems(res.puzzles);
+          if (Array.isArray(res.puzzles) && res.puzzles.length && !daily.length) {
+            return showMessage("Today's puzzles couldn't be loaded. Please check back later.", false);
           }
-
-          render();
-          $("#puzzleArea").removeClass("d-none");
+          showDaily();
         })
         .fail(function () {
-          $("#loadingState").addClass("d-none");
-          $("#emptyState").removeClass("d-none");
+          showMessage("Today's puzzles couldn't be loaded. Please check back later.", false);
         });
+
+      // ==========================================================
+      // Free play
+      // ==========================================================
+
+      function fetchFreeBatch(exclude) {
+        return $.ajax({
+          url: "api/get_freeplay.php",
+          method: "GET",
+          dataType: "json",
+          data: exclude.length ? { exclude: exclude.join(",") } : {},
+        }).then((res) => (res && res.success ? toItems(res.puzzles) : $.Deferred().reject()));
+      }
+
+      function showFreePuzzle(item) {
+        mode = "free";
+        free.item = item;
+        free.status = null;
+        free.seen.add(item.id);
+        $("#guessInput").val("");
+        $("#result").empty();
+        render();
+        if (free.notice) {
+          showResult("info", free.notice);
+          free.notice = "";
+        }
+      }
+
+      function nextFreePuzzle() {
+        if (free.queue.length) return showFreePuzzle(free.queue.shift());
+
+        showLoading("Loading puzzles…");
+        $("#freeBar").removeClass("d-none");
+        fetchFreeBatch([...free.seen])
+          .then(function (items) {
+            if (items.length || !free.seen.size) return items;
+            // Every puzzle has been played this session: start over,
+            // keeping the one just played away from the front.
+            free.notice = "You've played them all — shuffling again!";
+            const lastId = free.item && free.item.id;
+            free.seen.clear();
+            return fetchFreeBatch([]).then(function (again) {
+              if (again.length > 1 && again[0].id === lastId) again.push(again.shift());
+              return again;
+            });
+          })
+          .done(function (items) {
+            if (!items.length) {
+              return showMessage("There are no free play puzzles yet. Check back soon!", false);
+            }
+            free.queue = items;
+            showFreePuzzle(free.queue.shift());
+          })
+          .fail(function () {
+            showMessage("Free play puzzles couldn't be loaded. Please try again later.", false);
+          });
+      }
+
+      function startFreePlay() {
+        mode = "free";
+        // pick up an unfinished free play puzzle where it was left
+        if (free.item && !free.status) {
+          $("#guessInput").val("");
+          $("#result").empty();
+          return render();
+        }
+        nextFreePuzzle();
+      }
+
+      // ==========================================================
+      // Controls
+      // ==========================================================
+
+      function finishCurrent(status) {
+        if (mode === "daily") {
+          setDailyStatus(daily[current].id, status);
+        } else {
+          free.status = status;
+          if (status === "solved") free.solvedCount++;
+        }
+        render();
+        if (status === "solved") $("#nextBtn:visible").trigger("focus");
+      }
 
       $("#guessForm").on("submit", function (e) {
         e.preventDefault();
-        if (!puzzle || puzzle.solved) return;
+        const item = mode === "daily" ? daily[current] : free.item;
+        const status = mode === "daily" ? item && dailyStatus(item.id) : free.status;
+        if (!item || status) return;
 
-        const guess = toChars($("#guessInput").val().trim())
-          .join("")
-          .toLocaleLowerCase();
+        const guess = toChars($("#guessInput").val().trim()).join("").toLocaleLowerCase();
         if (!guess) return showResult("warning", "Type your answer first.");
 
-        const answer = puzzle.chars.join("").toLocaleLowerCase();
-        if (guess === answer) {
-          puzzle.solved = true;
-          render();
-          $("#guessInput").prop("disabled", true);
-          showResult("success", "Correct! 🎉");
+        if (guess === answerOf(item.puzzle).toLocaleLowerCase()) {
+          finishCurrent("solved");
         } else {
           showResult("danger", "Not quite — try again.");
         }
       });
 
+      // Reveal locks the puzzle: it's saved as "revealed", so a refresh
+      // can't undo it and it never counts toward the streak.
       $("#revealBtn").on("click", function () {
-        if (!puzzle) return;
-        puzzle.solved = true;
-        render();
-        $("#guessInput").prop("disabled", true);
-        showResult("secondary", "Answer: " + puzzle.chars.join(""));
+        if (mode === "daily" ? !daily[current] : !free.item) return;
+        finishCurrent("revealed");
       });
+
+      $("#nextBtn").on("click", function () {
+        if (mode === "free") return nextFreePuzzle();
+        const target = nextUnfinished(current);
+        if (target !== -1) goToDaily(target);
+      });
+
+      $("#prevBtn").on("click", () => current > 0 && goToDaily(current - 1));
+      $("#nextArrowBtn").on("click", () => current < daily.length - 1 && goToDaily(current + 1));
+
+      $("#startFreeBtn, #startFreeFromEmptyBtn").on("click", startFreePlay);
+      $("#backToDailyBtn").on("click", showDaily);
     });
     </script>
   </body>
