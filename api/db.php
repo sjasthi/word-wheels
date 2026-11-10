@@ -23,6 +23,9 @@ function get_db() {
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
+            // UPDATE reports rows MATCHED, not just rows CHANGED, so
+            // re-saving a value a puzzle already has isn't "not found".
+            PDO::MYSQL_ATTR_FOUND_ROWS   => true,
         ];
 
         try {

@@ -41,8 +41,7 @@ CREATE TABLE puzzles (
     ring_order     JSON         NULL,                 -- ring letter indexes in placement order e.g. [3,1,6,2,5,4]
     hidden_indexes JSON         NULL,                 -- arrangement indexes shown as "?" e.g. [2,5]
     language       VARCHAR(10)  DEFAULT 'en',         -- language code e.g. 'en', 'ko', 'ja', 'hi'
-    status         ENUM('draft', 'published') DEFAULT 'draft',
-    scheduled_date DATE         NULL,                 -- date assigned for daily puzzle, nullable
+    scheduled_date DATE         NULL,                 -- daily puzzle date; NULL = in the free play pool
     created_by     INT          NULL,                 -- foreign key to users table
     created_date   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
@@ -55,9 +54,6 @@ CREATE TABLE puzzles (
 
 -- Daily puzzle lookup by date
 CREATE INDEX idx_scheduled_date ON puzzles(scheduled_date);
-
--- Admin filtering by status (draft/published)
-CREATE INDEX idx_status ON puzzles(status);
 
 -- Filtering puzzles by creator
 CREATE INDEX idx_created_by ON puzzles(created_by);

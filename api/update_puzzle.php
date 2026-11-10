@@ -5,11 +5,13 @@
 // Method:  POST
 // Expects: JSON body {
 //            id,
-//            status (optional),
-//            scheduled_date (optional, "YYYY-MM-DD" or null)
+//            scheduled_date ("YYYY-MM-DD", or null/"" to unschedule)
 //          }
 // Returns: { success: true }
 //       or { success: false, error: <message> }
+//
+// Setting a value the puzzle already has succeeds (db.php counts
+// matched rows); only an id that doesn't exist answers 404.
 // ============================================================
 
 session_start();
@@ -43,20 +45,19 @@ $fields = [];
 $values = [];
 
 // Build update query dynamically based on what was sent
-if (isset($data['status'])) {
-    if (!in_array($data['status'], ['draft', 'published'])) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid status value.']);
-        exit;
-    }
-    $fields[] = 'status = ?';
-    $values[] = $data['status'];
-}
-
 if (array_key_exists('scheduled_date', $data)) {
-    // Allow null to unschedule a puzzle
+    // Allow null or "" to unschedule a puzzle
+    $date = $data['scheduled_date'] ?: null;
+    if ($date !== null) {
+        $parsed = is_string($date) ? DateTime::createFromFormat('!Y-m-d', $date) : false;
+        if (!$parsed || $parsed->format('Y-m-d') !== $date) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid date.']);
+            exit;
+        }
+    }
     $fields[] = 'scheduled_date = ?';
-    $values[] = $data['scheduled_date'] ?: null;
+    $values[] = $date;
 }
 
 if (empty($fields)) {

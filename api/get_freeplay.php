@@ -10,10 +10,9 @@
 //            eligible puzzle is excluded (or none exist)
 //       or { success: false, error: <message> }
 //
-// Only published puzzles that are unscheduled or scheduled BEFORE
-// today are eligible. Today's daily puzzles and future ones are left
-// out so free play never gives away an upcoming daily puzzle, and
-// drafts are never shown to players.
+// Only puzzles that are unscheduled or scheduled BEFORE today are
+// eligible. Today's daily puzzles and future ones are left out so free
+// play never gives away an upcoming daily puzzle.
 // ============================================================
 
 require_once 'db.php';
@@ -48,8 +47,7 @@ try {
     $sql = "
         SELECT " . PLAYER_PUZZLE_COLUMNS . "
         FROM puzzles
-        WHERE status = 'published'
-          AND (scheduled_date IS NULL OR scheduled_date < CURDATE())
+        WHERE (scheduled_date IS NULL OR scheduled_date < CURDATE())
     ";
     if ($exclude) {
         $sql .= " AND id NOT IN (" . implode(',', array_fill(0, count($exclude), '?')) . ")";

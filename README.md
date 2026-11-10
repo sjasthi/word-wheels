@@ -30,8 +30,9 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
   - Saved list shows each puzzle's name, word, and a readable save date/time; the list refreshes and highlights the puzzle after saving
   - Loading a puzzle shows the exact same wheel that was saved (same starting position, letter order, and hidden letters)
   - Loading a puzzle also fills the **Create a puzzle** form with its word and settings, so **Generate wheel** recreates it with a fresh layout
-- Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (wheel preview, publish/unpublish, scheduling, delete, and bulk print/delete)
-- Player page (site root) showing today's published, scheduled puzzle
+- Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (filters, sortable columns, wheel preview, scheduling, and bulk schedule/unschedule/print/delete). The open tab is kept in the URL, so a refresh returns to it, and the Manage table updates by itself after puzzles are saved.
+- No draft/published status: every saved puzzle is live. Scheduled for today = a daily puzzle; scheduled later = hidden until that day; unscheduled or past = in the free play pool. Delete puzzles you don't want.
+- Player page (site root) showing today's scheduled puzzles
 - **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with shared or randomized settings, and optionally save them all to the database
 - **Sandbox** (`sandbox.html`) — players paste their own word bank, choose length, direction, center letter, and hidden letters, and play wheels built from random words in the bank. Nothing is saved to the server.
 - Word lists (Batch Generate and Sandbox) keep letters-only words; words with apostrophes, hyphens, or numbers are skipped and listed so they can be fixed
@@ -73,6 +74,7 @@ git clone https://github.com/sjasthi/word-wheels.git
 If your database was created from an older version of the schema, run the migrations in `sql/` once instead of re-importing:
 
 - `sql/migrate_add_name.sql` — adds the optional puzzle `name` column
+- `sql/migrate_remove_status.sql` — removes the draft/published `status` column. Drafts become live, so read the notes at the top of the file and delete unwanted drafts first.
 - `sql/migrate_add_layout.sql` — adds the saved wheel layout columns (`start_slot`, `ring_order`, `hidden_indexes`). Every puzzle must have a layout, so delete and re-create any puzzles saved before this migration; they show an "invalid layout" message.
 
 The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, and `.css` files on every load, so edits show up without a hard refresh.
@@ -99,18 +101,20 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 2. Set the min and max length (anywhere from 3 to 12). Words in range appear as checkboxes, with the first 100 selected.
 3. Pick "Same settings for every word" and set them, or "Randomize settings for each word"
 4. Click **Mass generate** to preview every puzzle
-5. Click **Print / Save as PDF**, choose how many puzzles per page (1–8), and print. The solutions start on a new page.
-6. Optionally enter a name prefix (e.g. "Animals" → "Animals #1", "Animals #2", …) and click **Save all to database**
+5. Untick **Include** on any puzzle you don't want (or use **Include all** / **Include none**). **New layout** re-rolls one puzzle's wheel without changing its word.
+6. Click **Print**, choose how many puzzles per page (1–8), and print. Only included puzzles are printed; the solutions start on a new page.
+7. Optionally enter a name prefix and click **Save to database**. Only included puzzles are saved, numbered without gaps ("Animals #1", "Animals #2", … even if some were left out). Saved puzzles are locked in the preview.
 
 ### Manage Puzzles tab
 
-1. Click a row to preview its wheel, set its scheduled date, publish/unpublish, print, or delete it
-2. Publish a puzzle and give it today's date to make it the daily puzzle
-3. Tick several rows to **Print selected** or **Delete selected**
+1. Filter by name/word, schedule status (unscheduled, today, upcoming, past), a specific scheduled date, language, and length; **More filters** adds hidden letters, center letter, and direction. Filters and sort are remembered in your browser.
+2. Click a column header to sort by it; click again to reverse
+3. Click a row to preview its wheel, set or clear its scheduled date, print, or delete it. Give a puzzle today's date to make it a daily puzzle.
+4. Tick rows (the header checkbox ticks only the rows shown) to **Schedule** them on a date, **Unschedule**, **Print**, or **Delete** them in one step. Changes that affect today's daily puzzles ask first.
 
 ### Player page (site root)
 
-Shows today's published puzzle. Type a guess and click **Check**, or **Reveal** the answer.
+Shows today's scheduled puzzles. Type a guess and click **Check**, or **Reveal** the answer.
 
 ### Sandbox (`sandbox.html`)
 
@@ -152,7 +156,7 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 
 - Unsaved puzzles are lost on refresh, including a mass-generated set that hasn't been saved
 - The Sandbox word bank lives in the player's browser (`localStorage`); there is no teacher-managed bank yet
-- The save API doesn't check the admin session yet, and the list/load APIs return answers to anyone
+- The save API doesn't check the admin session yet (the list, load, update, delete, and bulk APIs do)
 - Mass generate reads `.txt` files only. Languages written without spaces between words (Chinese, Japanese) come out as whole phrases rather than separate words.
 - Saved puzzles are always tagged with language `en` (no language picker yet)
 - No server-side word validation — the app trusts the user to enter a real word
