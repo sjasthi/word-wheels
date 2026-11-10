@@ -285,6 +285,9 @@ $(function () {
     showResult("secondary", "Answer: " + puzzle.chars.join(""));
   });
 
+  // Print shows only the current wheel (see the @media print styles).
+  $("#sbPrintBtn").on("click", function () { window.print(); });
+
   restoreState();
   updateHiddenOptions();
   refreshBank();
