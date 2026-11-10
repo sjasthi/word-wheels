@@ -2,27 +2,15 @@
 // ============================================================
 // Word Wheel — Admin Dashboard
 // ============================================================
+// The Manage tab's table is filled by admin/manage.js from
+// api/get_all.php, so it can refresh after saves without a reload.
+// ============================================================
 
 session_start();
-require_once '../api/db.php';
 
 if (empty($_SESSION['admin'])) {
     header('Location: login.php');
     exit;
-}
-
-try {
-    $pdo  = get_db();
-    $stmt = $pdo->prepare("
-        SELECT id, name, word, direction, hidden_count, center_letter,
-               language, status, scheduled_date, created_date
-        FROM puzzles
-        ORDER BY created_date DESC
-    ");
-    $stmt->execute();
-    $puzzles = $stmt->fetchAll();
-} catch (PDOException $e) {
-    $puzzles = [];
 }
 ?>
 <!DOCTYPE html>
@@ -48,6 +36,12 @@ try {
       .puzzle-row { cursor: pointer; }
       .puzzle-row:hover { background-color: #f8f9fa; }
       .puzzle-row td:first-child { width: 40px; }
+      #manageTable th { white-space: nowrap; }
+      #manageTable th.sortable { cursor: pointer; user-select: none; }
+      #manageTable th.sortable:hover { background-color: #e9ecef; }
+      #manageTable th .sort-arrow { display: inline-block; width: 0.9em; color: #0d6efd; }
+      #manageTable td { vertical-align: middle; }
+      #manageFilters .form-label { font-size: 0.8rem; margin-bottom: 0.15rem; color: #6c757d; }
 
       .detail-row td { background: #f8f9fa; border-top: none; padding: 1.25rem; }
       .detail-row .preview-wheel { --wheel-size: min(220px, 70vw); }
@@ -63,7 +57,8 @@ try {
         gap: 0.75rem;
         margin-bottom: 0.75rem;
       }
-      #bulkToolbar.visible { display: flex; }
+      #bulkToolbar.visible { display: flex; flex-wrap: wrap; }
+      #bulkToolbar .form-control { width: auto; }
 
       /* Batch tab — word list */
       #batchWordList {
@@ -82,6 +77,12 @@ try {
       .batch-puzzle-preview .wheel {
         --wheel-size: min(240px, 70vw);
       }
+      .batch-puzzle-preview { transition: opacity 0.15s; }
+      .batch-puzzle-preview.is-excluded { opacity: 0.4; }
+      #batchSheetBar {
+        position: sticky; top: 0; z-index: 10;
+        max-width: 480px; margin: 0 auto 0.75rem;
+      }
     </style>
 </head>
 <body class="bg-light">
@@ -95,17 +96,17 @@ try {
     <!-- ── Tabs ── -->
     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-create"
+            <button class="nav-link active" id="tab-create" data-tab-name="create"
                     data-bs-toggle="tab" data-bs-target="#pane-create"
                     type="button" role="tab">Create Puzzle</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-batch"
+            <button class="nav-link" id="tab-batch" data-tab-name="batch"
                     data-bs-toggle="tab" data-bs-target="#pane-batch"
                     type="button" role="tab">Batch Generate</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-manage"
+            <button class="nav-link" id="tab-manage" data-tab-name="manage"
                     data-bs-toggle="tab" data-bs-target="#pane-manage"
                     type="button" role="tab">Manage Puzzles</button>
         </li>
@@ -340,6 +341,7 @@ try {
                             <button id="batchPrintBtn" class="btn btn-outline-primary w-100" type="button" disabled>
                                 Print / Save as PDF
                             </button>
+                            <div class="form-text">Only the puzzles ticked “Include” are printed and saved.</div>
 
                             <label for="batchNamePrefix" class="form-label mt-3">
                                 Name prefix <span class="text-muted">(optional)</span>
@@ -347,7 +349,7 @@ try {
                             <input id="batchNamePrefix" class="form-control" autocomplete="off" maxlength="90"
                                    placeholder="e.g. Animals → Animals #1, #2, …">
                             <button id="batchSaveAllBtn" class="btn btn-success w-100 mt-2" type="button" disabled>
-                                Save all to database
+                                Save to database
                             </button>
 
                             <div id="batchSheetStatus" class="mt-3" role="status" aria-live="polite"></div>
@@ -368,19 +370,107 @@ try {
              ════════════════════════════════════════════════ -->
         <div class="tab-pane fade" id="pane-manage" role="tabpanel">
 
+            <!-- Filters -->
+            <div id="manageFilters" class="card shadow-sm mb-3">
+                <div class="card-body py-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-md-4 col-xl-2">
+                            <label for="filterSearch" class="form-label">Search</label>
+                            <input id="filterSearch" type="search" class="form-control form-control-sm"
+                                   placeholder="Name or word" autocomplete="off" spellcheck="false">
+                        </div>
+                        <div class="col-6 col-md-3 col-xl-2">
+                            <label for="filterSchedule" class="form-label">Schedule status</label>
+                            <select id="filterSchedule" class="form-select form-select-sm">
+                                <option value="">All</option>
+                                <option value="unscheduled">Unscheduled (free play)</option>
+                                <option value="scheduled">Any scheduled date</option>
+                                <option value="today">Today</option>
+                                <option value="upcoming">Upcoming</option>
+                                <option value="past">Past</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3 col-xl-2">
+                            <label for="filterDate" class="form-label">Scheduled date</label>
+                            <input id="filterDate" type="date" class="form-control form-control-sm"
+                                   aria-describedby="filterDateHelp">
+                            <span id="filterDateHelp" class="visually-hidden">Shows only puzzles scheduled on this day. Clear it to show all dates.</span>
+                        </div>
+                        <div class="col-6 col-md-2 col-xl-1">
+                            <label for="filterLanguage" class="form-label">Language</label>
+                            <select id="filterLanguage" class="form-select form-select-sm">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3 col-xl-2">
+                            <span class="form-label d-block">Length</span>
+                            <div class="input-group input-group-sm">
+                                <input id="filterLengthMin" type="number" class="form-control" min="1" max="30"
+                                       placeholder="min" aria-label="Minimum length">
+                                <span class="input-group-text">–</span>
+                                <input id="filterLengthMax" type="number" class="form-control" min="1" max="30"
+                                       placeholder="max" aria-label="Maximum length">
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-9 col-xl-3 d-flex flex-wrap gap-2 align-items-center justify-content-end">
+                            <button id="moreFiltersBtn" class="btn btn-sm btn-outline-secondary" type="button"
+                                    aria-expanded="false" aria-controls="moreFilters">More filters</button>
+                            <button id="resetFiltersBtn" class="btn btn-sm btn-link" type="button">Reset</button>
+                        </div>
+                    </div>
+                    <div id="moreFilters" class="row g-2 mt-1 d-none">
+                        <div class="col-4 col-md-2">
+                            <label for="filterHidden" class="form-label">Hidden letters</label>
+                            <select id="filterHidden" class="form-select form-select-sm">
+                                <option value="">Any</option>
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                            </select>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <label for="filterCenter" class="form-label">Center letter</label>
+                            <select id="filterCenter" class="form-select form-select-sm">
+                                <option value="">Any</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        <div class="col-4 col-md-2">
+                            <label for="filterDirection" class="form-label">Direction</label>
+                            <select id="filterDirection" class="form-select form-select-sm">
+                                <option value="">Any</option>
+                                <option value="random">Random</option>
+                                <option value="cw">Clockwise</option>
+                                <option value="ccw">Anticlockwise</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Bulk action toolbar (shown when ≥1 checkbox checked) -->
             <div id="bulkToolbar">
                 <span id="bulkCount" class="fw-semibold"></span>
-                <button id="bulkPrintBtn"  class="btn btn-sm btn-light">Print selected</button>
-                <button id="bulkDeleteBtn" class="btn btn-sm btn-danger">Delete selected</button>
-                <button id="bulkClearBtn"  class="btn btn-sm btn-link text-white text-decoration-none ms-auto">
+                <div class="input-group input-group-sm w-auto">
+                    <input id="bulkDateInput" type="date" class="form-control" aria-label="Date to schedule">
+                    <button id="bulkScheduleBtn" class="btn btn-light" type="button">Schedule</button>
+                </div>
+                <button id="bulkUnscheduleBtn" class="btn btn-sm btn-light" type="button">Unschedule</button>
+                <button id="bulkPrintBtn"      class="btn btn-sm btn-light" type="button">Print</button>
+                <button id="bulkDeleteBtn"     class="btn btn-sm btn-danger" type="button">Delete</button>
+                <button id="bulkClearBtn"      class="btn btn-sm btn-link text-white text-decoration-none ms-auto" type="button">
                     Clear selection
                 </button>
             </div>
 
-            <?php if (empty($puzzles)): ?>
-                <p class="text-muted">No puzzles yet. Create one in the Create Puzzle tab.</p>
-            <?php else: ?>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span id="manageCount" class="small text-muted" aria-live="polite"></span>
+                <button id="manageRefreshBtn" class="btn btn-sm btn-link" type="button">Refresh</button>
+            </div>
+            <div id="manageStatus" class="mb-2" role="status" aria-live="polite"></div>
+
             <div class="card shadow-sm">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0" id="manageTable">
@@ -388,96 +478,26 @@ try {
                             <tr>
                                 <th>
                                     <input type="checkbox" class="form-check-input" id="selectAll"
-                                           title="Select all">
+                                           title="Select all shown" aria-label="Select all shown puzzles">
                                 </th>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Word</th>
-                                <th>Direction</th>
-                                <th>Hidden</th>
-                                <th>Status</th>
-                                <th>Scheduled</th>
-                                <th>Created</th>
+                                <th class="sortable" data-sort="id">ID</th>
+                                <th class="sortable" data-sort="name">Name</th>
+                                <th class="sortable" data-sort="word">Word</th>
+                                <th class="sortable" data-sort="length">Length</th>
+                                <th class="sortable" data-sort="language">Language</th>
+                                <th class="sortable" data-sort="direction">Direction</th>
+                                <th class="sortable" data-sort="hidden">Hidden</th>
+                                <th class="sortable" data-sort="center">Center</th>
+                                <th class="sortable" data-sort="scheduled">Scheduled</th>
+                                <th class="sortable" data-sort="created">Created</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php foreach ($puzzles as $p): ?>
-                            <!-- Summary row -->
-                            <tr class="puzzle-row" id="row-<?= $p['id'] ?>"
-                                data-id="<?= $p['id'] ?>">
-                                <td onclick="event.stopPropagation()">
-                                    <input type="checkbox" class="form-check-input row-checkbox"
-                                           value="<?= $p['id'] ?>">
-                                </td>
-                                <td><?= $p['id'] ?></td>
-                                <td>
-                                    <?= $p['name']
-                                        ? htmlspecialchars($p['name'])
-                                        : '<span class="fst-italic text-muted">Unnamed</span>' ?>
-                                </td>
-                                <td><strong><?= htmlspecialchars($p['word']) ?></strong></td>
-                                <td><?= htmlspecialchars($p['direction']) ?></td>
-                                <td><?= (int)$p['hidden_count'] ?></td>
-                                <td>
-                                    <span class="badge <?= $p['status'] === 'published' ? 'bg-success' : 'bg-secondary' ?>">
-                                        <?= $p['status'] ?>
-                                    </span>
-                                </td>
-                                <td><?= htmlspecialchars($p['scheduled_date'] ?? '—') ?></td>
-                                <td><?= date('M j, Y', strtotime($p['created_date'])) ?></td>
-                            </tr>
-                            <!-- Detail row (hidden until row clicked) -->
-                            <tr class="detail-row d-none" id="detail-<?= $p['id'] ?>">
-                                <td colspan="9">
-                                    <div class="row g-3 align-items-start">
-                                        <!-- Wheel preview -->
-                                        <div class="col-md-4 text-center">
-                                            <div class="wheel preview-wheel" id="preview-wheel-<?= $p['id'] ?>">
-                                                <svg viewBox="0 0 100 100" aria-hidden="true"></svg>
-                                            </div>
-                                            <div class="text-muted small mt-2" id="preview-loading-<?= $p['id'] ?>">
-                                                Loading preview…
-                                            </div>
-                                        </div>
-                                        <!-- Actions -->
-                                        <div class="col-md-8">
-                                            <h6 class="fw-semibold mb-3">
-                                                <?= $p['name'] ? htmlspecialchars($p['name']) : htmlspecialchars($p['word']) ?>
-                                            </h6>
-                                            <div class="mb-3">
-                                                <label class="form-label small text-muted mb-1">Scheduled date</label>
-                                                <input type="date"
-                                                       class="form-control form-control-sm date-input"
-                                                       style="max-width:200px"
-                                                       data-id="<?= $p['id'] ?>"
-                                                       value="<?= htmlspecialchars($p['scheduled_date'] ?? '') ?>">
-                                            </div>
-                                            <div class="d-flex gap-2 flex-wrap">
-                                                <button class="btn btn-sm <?= $p['status'] === 'published' ? 'btn-outline-secondary' : 'btn-outline-success' ?> toggle-btn"
-                                                        data-id="<?= $p['id'] ?>"
-                                                        data-status="<?= $p['status'] ?>">
-                                                    <?= $p['status'] === 'published' ? 'Unpublish' : 'Publish' ?>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-primary print-one-btn"
-                                                        data-id="<?= $p['id'] ?>">
-                                                    Print
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger delete-btn"
-                                                        data-id="<?= $p['id'] ?>"
-                                                        data-word="<?= htmlspecialchars($p['word']) ?>">
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
+                        <tbody id="manageBody">
+                            <tr><td colspan="11" class="text-center text-muted py-4">Loading puzzles…</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <?php endif; ?>
 
         </div><!-- /pane-manage -->
 
@@ -521,6 +541,7 @@ try {
 <script src="../wheel.js"></script>
 <script src="print.js"></script>
 <script src="dashboard.js"></script>
+<script src="manage.js"></script>
 <script src="batch.js"></script>
 </body>
 </html>

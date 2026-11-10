@@ -123,6 +123,7 @@ $(function () {
           $("#nameInput").val("");
           showSavedStatus("success", "Puzzle saved!");
           loadSavedPuzzles(res.id);
+          if (window.refreshManage) window.refreshManage(); // show it in Manage Puzzles
         } else {
           showSavedStatus("danger", (res && res.error) || "Could not save the puzzle.");
         }
@@ -204,216 +205,18 @@ $(function () {
       });
   });
 
-  // ── Manage tab — expandable rows ──────────────────────────
-  const previewCache = {};
-
-  $(document).on("click", ".puzzle-row", function () {
-    const id      = $(this).data("id");
-    const $detail = $("#detail-" + id);
-    const isOpen  = !$detail.hasClass("d-none");
-
-    $(".detail-row").not($detail).addClass("d-none");
-
-    if (isOpen) {
-      $detail.addClass("d-none");
-      return;
-    }
-
-    $detail.removeClass("d-none");
-
-    if (previewCache[id]) {
-      renderPreview(id, previewCache[id]);
-    } else {
-      $.ajax({ url: "../api/get_puzzle.php", method: "GET",
-               data: { id: id }, dataType: "json" })
-        .done(function (res) {
-          if (!res || !res.success || !res.puzzle) {
-            $("#preview-loading-" + id).text("Could not load preview.");
-            return;
-          }
-          previewCache[id] = res.puzzle;
-          renderPreview(id, res.puzzle);
-        })
-        .fail(function () {
-          $("#preview-loading-" + id).text("Could not load preview.");
-        });
-    }
+  // ── Tabs — remember the open tab across reloads ──────────
+  // The active tab is kept in the URL (#create, #batch, #manage), so a
+  // refresh reopens it and dashboard.php#manage links straight to it.
+  $("#adminTabs [data-tab-name]").on("shown.bs.tab", function () {
+    history.replaceState(null, "", "#" + $(this).data("tab-name"));
   });
 
-  function renderPreview(id, p) {
-    const preview = puzzleFromApi(p);
-    if (!preview) {
-      $("#preview-loading-" + id).text("This puzzle's saved layout is invalid.");
-      return;
-    }
-    renderWheel(preview, $("#preview-wheel-" + id));
-    $("#preview-loading-" + id).addClass("d-none");
+  const startTab = location.hash.slice(1);
+  if (["create", "batch", "manage"].includes(startTab)) {
+    const startBtn = document.querySelector('#adminTabs [data-tab-name="' + startTab + '"]');
+    bootstrap.Tab.getOrCreateInstance(startBtn).show();
   }
-
-  // API puzzles → print-ready puzzles (with names for the print labels).
-  // Warns about and skips any whose saved layout is invalid.
-  function printablePuzzles(apiPuzzles) {
-    const printable = [];
-    apiPuzzles.forEach(function (p) {
-      const built = puzzleFromApi(p);
-      if (built) printable.push({ ...built, name: p.name || null });
-    });
-    const skipped = apiPuzzles.length - printable.length;
-    if (skipped) alert(skipped + " puzzle(s) skipped: saved layout is invalid.");
-    return printable;
-  }
-
-  // ── Manage tab — publish / unpublish ──────────────────────
-  $(document).on("click", ".toggle-btn", function (e) {
-    e.stopPropagation();
-    const $btn    = $(this);
-    const id      = $btn.data("id");
-    const current = $btn.data("status");
-    const next    = current === "published" ? "draft" : "published";
-
-    $.ajax({
-      url: "../api/update_puzzle.php", method: "POST",
-      contentType: "application/json", dataType: "json",
-      data: JSON.stringify({ id: id, status: next }),
-    }).done(function (res) {
-      if (res && res.success) {
-        $btn.data("status", next)
-            .text(next === "published" ? "Unpublish" : "Publish")
-            .toggleClass("btn-outline-success btn-outline-secondary");
-        const $badge = $("#row-" + id).find(".badge");
-        $badge.text(next)
-              .removeClass("bg-success bg-secondary")
-              .addClass(next === "published" ? "bg-success" : "bg-secondary");
-      } else {
-        alert("Error: " + ((res && res.error) || "Could not update puzzle."));
-      }
-    });
-  });
-
-  // ── Manage tab — schedule date ─────────────────────────────
-  $(document).on("change", ".date-input", function (e) {
-    e.stopPropagation();
-    const id   = $(this).data("id");
-    const date = $(this).val() || null;
-
-    $.ajax({
-      url: "../api/update_puzzle.php", method: "POST",
-      contentType: "application/json", dataType: "json",
-      data: JSON.stringify({ id: id, scheduled_date: date }),
-    }).done(function (res) {
-      if (res && !res.success)
-        alert("Error saving date: " + (res.error || "Unknown error."));
-    });
-  });
-
-  // ── Manage tab — single delete ─────────────────────────────
-  $(document).on("click", ".delete-btn", function (e) {
-    e.stopPropagation();
-    const id   = $(this).data("id");
-    const word = $(this).data("word");
-    if (!confirm('Delete puzzle "' + word + '"? This cannot be undone.')) return;
-    deletePuzzle(id);
-  });
-
-  function deletePuzzle(id) {
-    return $.ajax({
-      url: "../api/delete_puzzle.php", method: "POST",
-      contentType: "application/json", dataType: "json",
-      data: JSON.stringify({ id: id }),
-    }).done(function (res) {
-      if (res && res.success) {
-        $("#row-" + id).add("#detail-" + id).fadeOut(300, function () { $(this).remove(); });
-        delete previewCache[id];
-        updateBulkToolbar();
-      } else {
-        alert("Error: " + ((res && res.error) || "Could not delete puzzle."));
-      }
-    });
-  }
-
-  // ── Manage tab — checkboxes & bulk toolbar ─────────────────
-  function selectedIds() {
-    return $(".row-checkbox:checked").map(function () {
-      return parseInt(this.value, 10);
-    }).get();
-  }
-
-  function updateBulkToolbar() {
-    const ids = selectedIds();
-    if (ids.length > 0) {
-      $("#bulkCount").text(ids.length + " selected");
-      $("#bulkToolbar").addClass("visible");
-    } else {
-      $("#bulkToolbar").removeClass("visible");
-    }
-    const total   = $(".row-checkbox").length;
-    const checked = $(".row-checkbox:checked").length;
-    $("#selectAll").prop("indeterminate", checked > 0 && checked < total);
-    $("#selectAll").prop("checked", checked === total && total > 0);
-  }
-
-  $(document).on("change", ".row-checkbox", function () {
-    updateBulkToolbar();
-  });
-
-  $("#selectAll").on("change", function () {
-    $(".row-checkbox").prop("checked", this.checked);
-    updateBulkToolbar();
-  });
-
-  $("#bulkClearBtn").on("click", function () {
-    $(".row-checkbox").prop("checked", false);
-    $("#selectAll").prop("checked", false).prop("indeterminate", false);
-    updateBulkToolbar();
-  });
-
-  $("#bulkDeleteBtn").on("click", function () {
-    const ids = selectedIds();
-    if (!ids.length) return;
-    if (!confirm("Delete " + ids.length + " puzzle(s)? This cannot be undone.")) return;
-
-    let chain = Promise.resolve();
-    ids.forEach(function (id) {
-      chain = chain.then(function () { return deletePuzzle(id); });
-    });
-    chain.then(function () {
-      $(".row-checkbox").prop("checked", false);
-      updateBulkToolbar();
-    });
-  });
-
-  // ── Print — single puzzle from detail row ─────────────────
-  $(document).on("click", ".print-one-btn", function (e) {
-    e.stopPropagation();
-    const id = $(this).data("id");
-    if (!previewCache[id]) return;
-    const printable = printablePuzzles([previewCache[id]]);
-    if (printable.length) openPrintModal(printable);
-  });
-
-  // ── Print — bulk from toolbar ──────────────────────────────
-  $("#bulkPrintBtn").on("click", function () {
-    const ids = selectedIds();
-    if (!ids.length) return;
-
-    const fetches = ids.map(function (id) {
-      if (previewCache[id]) return Promise.resolve(previewCache[id]);
-      return $.ajax({ url: "../api/get_puzzle.php", method: "GET",
-                      data: { id: id }, dataType: "json" })
-        .then(function (res) {
-          if (res && res.success && res.puzzle) {
-            previewCache[id] = res.puzzle;
-            return res.puzzle;
-          }
-          return null;
-        });
-    });
-
-    Promise.all(fetches).then(function (puzzles) {
-      const printable = printablePuzzles(puzzles.filter(Boolean));
-      if (printable.length) openPrintModal(printable);
-    });
-  });
 
   // ── Print modal — shared by manage tab and batch tab ──────
   // Takes built puzzles (puzzleFromApi / buildPuzzle, optional .name).

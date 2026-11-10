@@ -7,8 +7,8 @@
 // Returns: { success: true,
 //            date: "YYYY-MM-DD",           // the server's "today"
 //            previous_date: "YYYY-MM-DD",  // most recent earlier day that
-//                                          // had published puzzles, or null
-//            puzzles: [ { ... }, ... ] }   // today's published puzzles,
+//                                          // had puzzles, or null
+//            puzzles: [ { ... }, ... ] }   // today's scheduled puzzles,
 //                                          // oldest first; may be empty
 //       or { success: false, error: <message> }
 //
@@ -40,7 +40,6 @@ try {
         SELECT " . PLAYER_PUZZLE_COLUMNS . "
         FROM puzzles
         WHERE scheduled_date = ?
-          AND status = 'published'
         ORDER BY id
     ");
     $stmt->execute([$today]);
@@ -50,7 +49,6 @@ try {
         SELECT MAX(scheduled_date)
         FROM puzzles
         WHERE scheduled_date < ?
-          AND status = 'published'
     ");
     $stmt->execute([$today]);
     $previous = $stmt->fetchColumn() ?: null;

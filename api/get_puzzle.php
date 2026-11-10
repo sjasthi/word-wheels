@@ -7,11 +7,12 @@
 // Returns: { success: true, puzzle: { id, name, word, arrangement,
 //             direction, hidden_count, center_letter,
 //             start_slot, ring_order, hidden_indexes, language,
-//             status, scheduled_date, created_date } }
+//             scheduled_date, created_date } }
 //          (layout fields are null for puzzles saved without one)
 //       or { success: false, error: <message> }
 // ============================================================
 
+require_once 'admin_only.php'; // the row includes the answer
 require_once 'db.php';
 
 // Only accept GET requests
@@ -35,7 +36,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT id, name, word, arrangement, direction, hidden_count,
                center_letter, start_slot, ring_order, hidden_indexes,
-               language, status, scheduled_date, created_date
+               language, scheduled_date, created_date
         FROM puzzles
         WHERE id = ?
     ");
