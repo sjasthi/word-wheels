@@ -38,6 +38,7 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
 - **Sandbox** (`sandbox.html`) — players paste their own word bank, choose length, direction, center letter, and hidden letters, and play wheels built from random words in the bank. Nothing is saved to the server.
 - Word lists (Batch Generate and Sandbox) keep letters-only words; words with apostrophes, hyphens, or numbers are skipped and listed so they can be fixed
 - Printing (browser print / Save as PDF) from Batch Generate or Manage Puzzles, with 1–8 puzzles per page and a solutions page at the end
+- Players can print the puzzle on screen (daily, free play, or Sandbox): just the wheel and an answer line, no solution
 - One shared puzzle engine (`wheel.js` / `wheel.css`) used by every page, so a saved wheel looks the same everywhere: dashboard, preview, printout, and player page
 
 ### Not yet implemented
@@ -118,6 +119,7 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 1. **Daily puzzles:** today's scheduled puzzles. With more than one, use the numbered pills or ‹ › arrows to move between them. Type a guess and click **Check**, **Reveal** the answer, or **Skip** to the next unfinished puzzle. Solved and revealed puzzles are remembered in this browser, so a refresh can't undo a Reveal.
 2. **Streak:** solving any daily puzzle without Reveal counts the day. Days with no puzzles scheduled don't break the streak.
 3. **Free play:** after finishing today's puzzles (or when there are none), keep playing unscheduled puzzles and puzzles from earlier days. Upcoming puzzles never appear in free play. Free play doesn't count toward the streak.
+4. **Print:** the **Print** button (or Ctrl+P) prints just the puzzle on screen: the title, the wheel, and a blank answer line. No answer is printed, but a wheel that has already been solved or revealed prints with its letters filled in.
 
 ### Sandbox (`sandbox.html`)
 
@@ -127,6 +129,7 @@ Linked from the bottom of the player page.
 2. In **Settings**, choose the word length (3–12), direction, center letter, and hidden letters. Hidden-letter choices that the shortest allowed word can't support are disabled, with the reason shown.
 3. Click **Generate wheel**. Both cards fold away so the word list isn't next to the wheel; click **Show** to open them again.
 4. Guess, **Reveal**, or use **New layout** (same word, current settings) and **New word** (next word from the bank). Every word comes up once before any repeats.
+5. **Print** (or Ctrl+P) prints only the current wheel with a blank answer line, without the word bank or settings.
 
 A bank with a single word works as a custom puzzle. The bank and settings are remembered in this browser only.
 
