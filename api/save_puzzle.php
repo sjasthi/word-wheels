@@ -77,6 +77,16 @@ if (!isset($data['start_slot'], $data['ring_order'], $data['hidden_indexes'])) {
 $letter_count = count($data['arrangement']);
 $first_ring   = $center_letter ? 1 : 0;
 $ring_size    = $letter_count - $first_ring;
+
+// Same limit as maxHidden() in wheel.js: at most 3, and at least one
+// ring letter must stay visible.
+$max_hidden = max(0, min(3, $ring_size - 1));
+if ($hidden_count > $max_hidden) {
+    http_response_code(400);
+    echo json_encode(['success' => false,
+        'error' => "This word is too short to hide $hidden_count letters (at most $max_hidden)."]);
+    exit;
+}
 $is_ring_index = function ($v) use ($first_ring, $letter_count) {
     return is_int($v) && $v >= $first_ring && $v < $letter_count;
 };

@@ -3,7 +3,7 @@ $(function () {
   const MAX_CHARS = 9;
 
   // Pull shared engine from wheel.js (window.WordWheel)
-  const { toChars, buildPuzzle, puzzleFromApi, puzzleToApi, apiError, renderWheel } =
+  const { toChars, checkGuess, buildPuzzle, puzzleFromApi, puzzleToApi, apiError, renderWheel } =
     window.WordWheel;
 
   // ── Puzzle state (Create tab) ──────────────────────────────
@@ -76,10 +76,9 @@ $(function () {
   $("#guessForm").on("submit", function (e) {
     e.preventDefault();
     if (!puzzle || puzzle.solved) return;
-    const guess  = toChars($("#guessInput").val().trim()).join("").toLocaleLowerCase();
-    if (!guess) return showResult("warning", "Type your answer first.");
-    const answer = puzzle.chars.join("").toLocaleLowerCase();
-    if (guess === answer) {
+    const outcome = checkGuess(puzzle, $("#guessInput").val());
+    if (outcome === "empty") return showResult("warning", "Type your answer first.");
+    if (outcome === "correct") {
       puzzle.solved = true; render();
       $("#guessInput").prop("disabled", true);
       showResult("success", "Correct! 🎉");

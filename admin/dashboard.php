@@ -125,13 +125,13 @@ try {
                         <div class="card-body">
                             <h2 class="h6 text-uppercase text-muted mb-3">Configuration</h2>
                             <form id="createForm" novalidate>
-                                <label for="wordInput" class="form-label">Word (7–9 letters)</label>
+                                <label for="wordInput" class="form-label fw-semibold">Word (7–9 letters)</label>
                                 <input id="wordInput" class="form-control" autocomplete="off"
                                        spellcheck="false" placeholder="e.g. elephant" />
                                 <div id="wordFeedback" class="invalid-feedback"></div>
 
                                 <div class="mt-3">
-                                    <span class="form-label d-block">Direction</span>
+                                    <span class="form-label fw-semibold d-block">Direction</span>
                                     <div class="form-check">
                                         <input class="form-check-input" type="radio" name="direction" id="dirRandom" value="random" checked />
                                         <label class="form-check-label" for="dirRandom">Random</label>
@@ -147,7 +147,7 @@ try {
                                 </div>
 
                                 <div class="mt-3">
-                                    <span class="form-label d-block">Central character</span>
+                                    <span class="form-label fw-semibold d-block">Central character</span>
                                     <div class="form-check form-check-inline">
                                         <input class="form-check-input" type="radio" name="centralCharacter" id="centralYes" value="yes" checked />
                                         <label class="form-check-label" for="centralYes">Yes</label>
@@ -159,7 +159,7 @@ try {
                                 </div>
 
                                 <div class="mt-3">
-                                    <label for="hiddenSelect" class="form-label">Hidden letters</label>
+                                    <label for="hiddenSelect" class="form-label fw-semibold">Hidden letters</label>
                                     <select id="hiddenSelect" class="form-select">
                                         <option value="0" selected>0 – show all</option>
                                         <option value="1">1</option>
@@ -254,11 +254,11 @@ try {
 
                             <div class="row g-2 mt-2">
                                 <div class="col-6 col-md-3">
-                                    <label for="batchMinLength" class="form-label">Min length</label>
+                                    <label for="batchMinLength" class="form-label fw-semibold">Min length</label>
                                     <input id="batchMinLength" class="form-control" type="number" min="3" max="12" value="7">
                                 </div>
                                 <div class="col-6 col-md-3">
-                                    <label for="batchMaxLength" class="form-label">Max length</label>
+                                    <label for="batchMaxLength" class="form-label fw-semibold">Max length</label>
                                     <input id="batchMaxLength" class="form-control" type="number" min="3" max="12" value="9">
                                 </div>
                             </div>
@@ -291,12 +291,12 @@ try {
                                 <label class="form-check-label" for="batchModeSame">Same settings for every word</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="batchMode" id="batchModeRandom" value="random">
-                                <label class="form-check-label" for="batchModeRandom">Randomize settings for each word</label>
+                                <input class="form-check-input" type="radio" name="batchMode" id="batchModeVary" value="vary">
+                                <label class="form-check-label" for="batchModeVary">Vary settings for each word</label>
                             </div>
 
                             <fieldset id="batchSameSettings" class="mt-3">
-                                <span class="form-label d-block">Direction</span>
+                                <span class="form-label fw-semibold d-block">Direction</span>
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="batchDirection" id="batchDirRandom" value="random" checked>
                                     <label class="form-check-label" for="batchDirRandom">Random</label>
@@ -310,7 +310,7 @@ try {
                                     <label class="form-check-label" for="batchDirCcw">Anticlockwise</label>
                                 </div>
 
-                                <span class="form-label d-block mt-3">Central character</span>
+                                <span class="form-label fw-semibold d-block mt-3">Central character</span>
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="batchCentralCharacter" id="batchCentralYes" value="yes" checked>
                                     <label class="form-check-label" for="batchCentralYes">Yes</label>
@@ -320,14 +320,14 @@ try {
                                     <label class="form-check-label" for="batchCentralNo">No</label>
                                 </div>
 
-                                <label for="batchHiddenSelect" class="form-label d-block mt-3">Hidden letters (difficulty)</label>
-                                <select id="batchHiddenSelect" class="form-select">
-                                    <option value="0" selected>0 – show all</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
+                                <label for="batchHiddenSelect" class="form-label fw-semibold d-block mt-3">Hidden letters (difficulty)</label>
+                                <select id="batchHiddenSelect" class="form-select" aria-describedby="batchHiddenNote">
+                                    <option value="0" data-label="0 – show all" selected>0 – show all</option>
+                                    <option value="1" data-label="1">1</option>
+                                    <option value="2" data-label="2">2</option>
+                                    <option value="3" data-label="3">3</option>
                                 </select>
-                                <div class="form-text">Very short words hide fewer letters so the wheel stays solvable.</div>
+                                <div id="batchHiddenNote" class="form-text" aria-live="polite"></div>
                             </fieldset>
 
                             <button id="batchGenerateBtn" class="btn btn-primary w-100 mt-4" type="button" disabled>

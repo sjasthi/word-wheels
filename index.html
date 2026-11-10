@@ -127,7 +127,7 @@
     <script src="wheel.js"></script>
     <script>
     $(function () {
-      const { toChars, buildPuzzle, puzzleFromApi, renderWheel } = window.WordWheel;
+      const { checkGuess, buildPuzzle, puzzleFromApi, renderWheel } = window.WordWheel;
 
       // ==========================================================
       // Saved progress (this browser only)
@@ -532,10 +532,10 @@
         const status = mode === "daily" ? item && dailyStatus(item.id) : free.status;
         if (!item || status) return;
 
-        const guess = toChars($("#guessInput").val().trim()).join("").toLocaleLowerCase();
-        if (!guess) return showResult("warning", "Type your answer first.");
+        const outcome = checkGuess(item.puzzle, $("#guessInput").val());
+        if (outcome === "empty") return showResult("warning", "Type your answer first.");
 
-        if (guess === answerOf(item.puzzle).toLocaleLowerCase()) {
+        if (outcome === "correct") {
           finishCurrent("solved");
         } else {
           showResult("danger", "Not quite — try again.");

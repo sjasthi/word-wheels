@@ -1,8 +1,18 @@
 $(function () {
-  const { toChars, extractWords, buildPuzzle, puzzleToApi, apiError, renderWheel } =
-    window.WordWheel;
+  const {
+    toChars,
+    extractWords,
+    uniqueWords,
+    lengthRangeError,
+    filterByLength,
+    maxHidden,
+    applyHiddenLimit,
+    buildPuzzle,
+    puzzleToApi,
+    apiError,
+    renderWheel,
+  } = window.WordWheel;
 
-  const LENGTH_LIMITS = { min: 3, max: 12 }; // absolute range for the min/max inputs
   const MAX_PUZZLES = 100;
   const MAX_FILE_BYTES = 5 * 1024 * 1024;
   const DIRECTIONS = ["random", "cw", "ccw"];
@@ -17,6 +27,7 @@ $(function () {
   let candidates = []; // unique words from the file: { word, chars }
   let duplicateCount = 0;
   let rejected = []; // unique tokens with apostrophes, hyphens, or digits
+  let shown = []; // candidates in the length range, in checkbox order
   let entries = []; // generated sheet: { puzzle, savedId, $note }
 
   function alertBox(type, content) {
@@ -75,23 +86,10 @@ $(function () {
     }
 
     const extracted = extractWords(text);
-    const seen = new Set();
-    extracted.words.forEach(function (word) {
-      const key = word.toLocaleLowerCase();
-      if (seen.has(key)) {
-        duplicateCount++;
-        return;
-      }
-      seen.add(key);
-      candidates.push({ word, chars: toChars(word) });
-    });
-    const seenRejected = new Set();
-    extracted.rejected.forEach(function (token) {
-      const key = token.toLocaleLowerCase();
-      if (seenRejected.has(key)) return;
-      seenRejected.add(key);
-      rejected.push(token);
-    });
+    const { unique, repeats } = uniqueWords(extracted.words);
+    candidates = unique.map((word) => ({ word, chars: toChars(word) }));
+    duplicateCount = repeats;
+    rejected = uniqueWords(extracted.rejected).unique;
 
     if (!candidates.length) {
       showStatus(
@@ -117,17 +115,7 @@ $(function () {
   function readLengthRange() {
     const min = parseInt($("#batchMinLength").val(), 10);
     const max = parseInt($("#batchMaxLength").val(), 10);
-    let error = "";
-    if (
-      !Number.isInteger(min) ||
-      !Number.isInteger(max) ||
-      min < LENGTH_LIMITS.min ||
-      max > LENGTH_LIMITS.max
-    ) {
-      error = `Lengths must be between ${LENGTH_LIMITS.min} and ${LENGTH_LIMITS.max}.`;
-    } else if (min > max) {
-      error = "Min length can't be more than max length.";
-    }
+    const error = lengthRangeError(min, max);
     $("#batchLengthFeedback").text(error);
     $("#batchMinLength, #batchMaxLength").toggleClass("is-invalid", !!error);
     return error ? null : { min, max };
@@ -139,26 +127,23 @@ $(function () {
     const $list = $("#batchWordList").empty();
     const range = readLengthRange();
     clearSheet();
+    shown = [];
 
     if (!candidates.length || !range) {
       $("#batchWordPicker").addClass("d-none");
       return updateSelection();
     }
 
-    let tooShort = 0;
-    let tooLong = 0;
-    candidates.forEach(function (c, i) {
-      const length = c.chars.length;
-      if (length < range.min) return tooShort++;
-      if (length > range.max) return tooLong++;
-
+    const { inRange: words, tooShort, tooLong } = filterByLength(candidates, range);
+    shown = words;
+    shown.forEach(function (c, i) {
       const id = "batch-word-" + i;
       $list.append(
         $('<div class="form-check mb-0"></div>')
           .append(
             $('<input class="form-check-input" type="checkbox">')
               .attr({ id, "data-index": i })
-              .prop("checked", $list.children().length < MAX_PUZZLES),
+              .prop("checked", i < MAX_PUZZLES),
           )
           .append(
             $('<label class="form-check-label"></label>')
@@ -168,7 +153,7 @@ $(function () {
       );
     });
 
-    const inRange = $list.children().length;
+    const inRange = shown.length;
     const skipped = [
       tooShort && `${tooShort} too short`,
       tooLong && `${tooLong} too long`,
@@ -190,7 +175,7 @@ $(function () {
   function selectedWords() {
     return $("#batchWordList input:checked")
       .map(function () {
-        return candidates[$(this).data("index")];
+        return shown[$(this).data("index")];
       })
       .get();
   }
@@ -207,7 +192,23 @@ $(function () {
     $("#batchGenerateBtn").prop("disabled", count === 0 || tooMany);
   }
 
-  $("#batchMinLength, #batchMaxLength").on("input", refreshWordList);
+  // Every listed word is at least `min` letters, so the hidden options
+  // allowed for `min` work for every word ("Same settings" mode).
+  // Options above that are disabled with the reason, and a too-high
+  // choice is lowered.
+  function updateHiddenOptions() {
+    const range = readLengthRange();
+    const center = $('input[name="batchCentralCharacter"]:checked').val() === "yes";
+    $("#batchHiddenNote").text(
+      applyHiddenLimit($("#batchHiddenSelect"), range && range.min, center),
+    );
+  }
+
+  $("#batchMinLength, #batchMaxLength").on("input", function () {
+    updateHiddenOptions();
+    refreshWordList();
+  });
+  $('input[name="batchCentralCharacter"]').on("change", updateHiddenOptions);
   $("#batchWordList").on("change", "input", function () {
     clearSheet();
     updateSelection();
@@ -230,31 +231,40 @@ $(function () {
   // ---- Step 2: configure and generate ----
 
   $('input[name="batchMode"]').on("change", function () {
-    $("#batchSameSettings").prop("disabled", this.value === "random");
+    $("#batchSameSettings").prop("disabled", this.value === "vary");
   });
 
   function randomItem(list) {
     return list[Math.floor(Math.random() * list.length)];
   }
 
-  // Settings for one word, from the form or randomized. Short words
-  // hide at most ringSize - 1 letters so at least one ring letter shows.
+  // Settings for one word, from the form or varied per word. "Vary"
+  // picks the hidden count from what this word can hide. The final cap
+  // is a safety net so at least one ring letter always shows.
   function settingsFor(chars) {
-    const s =
-      $('input[name="batchMode"]:checked').val() === "random"
-        ? {
-            direction: randomItem(DIRECTIONS),
-            centralCharacter: Math.random() < 0.5,
-            hiddenCount: randomItem([0, 1, 2, 3]),
-          }
-        : {
-            direction: $('input[name="batchDirection"]:checked').val(),
-            centralCharacter:
-              $('input[name="batchCentralCharacter"]:checked').val() === "yes",
-            hiddenCount: parseInt($("#batchHiddenSelect").val(), 10),
-          };
-    const ringSize = s.centralCharacter ? chars.length - 1 : chars.length;
-    return { chars, ...s, hiddenCount: Math.min(s.hiddenCount, ringSize - 1) };
+    let s;
+    if ($('input[name="batchMode"]:checked').val() === "vary") {
+      const centralCharacter = Math.random() < 0.5;
+      s = {
+        direction: randomItem(DIRECTIONS),
+        centralCharacter,
+        hiddenCount: Math.floor(
+          Math.random() * (maxHidden(chars.length, centralCharacter) + 1),
+        ),
+      };
+    } else {
+      s = {
+        direction: $('input[name="batchDirection"]:checked').val(),
+        centralCharacter:
+          $('input[name="batchCentralCharacter"]:checked').val() === "yes",
+        hiddenCount: parseInt($("#batchHiddenSelect").val(), 10),
+      };
+    }
+    return {
+      chars,
+      ...s,
+      hiddenCount: Math.min(s.hiddenCount, maxHidden(chars.length, s.centralCharacter)),
+    };
   }
 
   function puzzleDetails(p) {
@@ -405,5 +415,6 @@ $(function () {
 
   // Browsers can restore form state on reload, so sync the UI to it.
   $('input[name="batchMode"]:checked').trigger("change");
+  updateHiddenOptions();
   refreshWordList();
 });
