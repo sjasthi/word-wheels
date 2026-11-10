@@ -49,6 +49,56 @@ window.WordWheel = (function () {
     return { words, rejected };
   }
 
+  // Drop repeats, ignoring case; the first spelling wins.
+  // Returns { unique, repeats }.
+  function uniqueWords(list) {
+    const seen = new Set();
+    const unique = [];
+    let repeats = 0;
+    list.forEach((word) => {
+      const key = word.toLocaleLowerCase();
+      if (seen.has(key)) {
+        repeats++;
+      } else {
+        seen.add(key);
+        unique.push(word);
+      }
+    });
+    return { unique, repeats };
+  }
+
+  // Word list length range: the inputs on Batch Generate and Sandbox
+  // accept any min/max inside these limits.
+  const LENGTH_LIMITS = { min: 3, max: 12 };
+
+  // Why a min/max pair can't be used, or "" when it's fine.
+  function lengthRangeError(min, max) {
+    if (
+      !Number.isInteger(min) ||
+      !Number.isInteger(max) ||
+      min < LENGTH_LIMITS.min ||
+      max > LENGTH_LIMITS.max
+    ) {
+      return `Lengths must be between ${LENGTH_LIMITS.min} and ${LENGTH_LIMITS.max}.`;
+    }
+    if (min > max) return "Min length can't be more than max length.";
+    return "";
+  }
+
+  // Split [{ word, chars }] by grapheme count against an inclusive
+  // { min, max }. Returns { inRange, tooShort, tooLong }.
+  function filterByLength(entries, range) {
+    const inRange = [];
+    let tooShort = 0;
+    let tooLong = 0;
+    entries.forEach((entry) => {
+      if (entry.chars.length < range.min) tooShort++;
+      else if (entry.chars.length > range.max) tooLong++;
+      else inRange.push(entry);
+    });
+    return { inRange, tooShort, tooLong };
+  }
+
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -62,6 +112,38 @@ window.WordWheel = (function () {
   function maxHidden(length, centralCharacter) {
     const ringSize = centralCharacter ? length - 1 : length;
     return Math.max(0, Math.min(3, ringSize - 1));
+  }
+
+  // Limit a "Hidden letters" <select> (options 0–3, each with a
+  // data-label) to what the shortest word in a list can hide. Options
+  // above the limit are disabled and say how many letters they need; a
+  // choice above the limit is lowered. minLength null = no limit.
+  // Returns a note explaining the limit, or "" when nothing is limited.
+  function applyHiddenLimit($select, minLength, centralCharacter) {
+    const limit = minLength ? maxHidden(minLength, centralCharacter) : 3;
+    // Read the native value before disabling: jQuery's .val() is null
+    // when the selected option is disabled.
+    const chosen = parseInt($select[0].value, 10);
+
+    $select.find("option").each(function () {
+      const n = parseInt(this.value, 10);
+      this.disabled = n > limit;
+      this.textContent =
+        n > limit
+          ? `${n} (needs ${n + 1 + (centralCharacter ? 1 : 0)}+ letters)`
+          : this.getAttribute("data-label");
+    });
+
+    if (limit >= 3) return "";
+    let note =
+      `With ${minLength}-letter words` +
+      (centralCharacter ? " and a center letter" : "") +
+      `, at most ${limit} can be hidden.`;
+    if (chosen > limit) {
+      $select.val(String(limit));
+      note = `Hidden letters lowered to ${limit}. ` + note;
+    }
+    return note;
   }
 
   // Compare a complete guess with the answer: "empty", "correct", or "wrong".
@@ -231,7 +313,12 @@ window.WordWheel = (function () {
   return {
     toChars,
     extractWords,
+    uniqueWords,
+    LENGTH_LIMITS,
+    lengthRangeError,
+    filterByLength,
     maxHidden,
+    applyHiddenLimit,
     checkGuess,
     buildPuzzle,
     restorePuzzle,

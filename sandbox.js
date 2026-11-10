@@ -7,10 +7,19 @@
 // ============================================================
 
 $(function () {
-  const { toChars, extractWords, maxHidden, checkGuess, buildPuzzle, renderWheel } =
-    window.WordWheel;
+  const {
+    toChars,
+    extractWords,
+    uniqueWords,
+    lengthRangeError,
+    filterByLength,
+    maxHidden,
+    applyHiddenLimit,
+    checkGuess,
+    buildPuzzle,
+    renderWheel,
+  } = window.WordWheel;
 
-  const LENGTH_LIMITS = { min: 3, max: 12 }; // absolute range for the min/max inputs
   const MAX_EXAMPLES = 5; // rejected words named in the status line
   const STORAGE_KEY = "wordWheel.sandbox";
 
@@ -44,17 +53,7 @@ $(function () {
   function readLengthRange() {
     const min = parseInt($("#sbMinLength").val(), 10);
     const max = parseInt($("#sbMaxLength").val(), 10);
-    let error = "";
-    if (
-      !Number.isInteger(min) ||
-      !Number.isInteger(max) ||
-      min < LENGTH_LIMITS.min ||
-      max > LENGTH_LIMITS.max
-    ) {
-      error = `Lengths must be between ${LENGTH_LIMITS.min} and ${LENGTH_LIMITS.max}.`;
-    } else if (min > max) {
-      error = "Min length can't be more than max length.";
-    }
+    const error = lengthRangeError(min, max);
     $("#sbLengthFeedback").text(error);
     $("#sbMinLength, #sbMaxLength").toggleClass("is-invalid", !!error);
     return error ? null : { min, max };
@@ -69,65 +68,28 @@ $(function () {
   // are disabled with the reason, and a too-high choice is lowered.
   function updateHiddenOptions() {
     const range = readLengthRange();
-    const center = centerOn();
-    const limit = range ? maxHidden(range.min, center) : 3;
-    const $select = $("#sbHiddenSelect");
-    // Read before disabling: jQuery's .val() is null on a disabled choice.
-    const chosen = parseInt($select.val(), 10);
-
-    $select.find("option").each(function () {
-      const n = parseInt(this.value, 10);
-      this.disabled = n > limit;
-      this.textContent =
-        n > limit
-          ? `${n} (needs ${n + 1 + (center ? 1 : 0)}+ letters)`
-          : $(this).data("label");
-    });
-
-    let note = "";
-    if (limit < 3) {
-      note =
-        `With ${range.min}-letter words` +
-        (center ? " and a center letter" : "") +
-        `, at most ${limit} can be hidden.`;
-      if (chosen > limit) {
-        $select.val(String(limit));
-        note = `Hidden letters lowered to ${limit}. ` + note;
-      }
-    }
-    $("#sbHiddenNote").text(note);
+    $("#sbHiddenNote").text(
+      applyHiddenLimit($("#sbHiddenSelect"), range && range.min, centerOn()),
+    );
   }
 
   // Re-read the bank: letters-only words, no repeats, in the length range.
   function refreshBank() {
     const { words, rejected } = extractWords($("#sbBankInput").val());
     const range = readLengthRange();
-    const seen = new Set();
-    let repeats = 0;
+    const { unique, repeats } = uniqueWords(words);
+    const uniqueRejected = uniqueWords(rejected).unique;
     let tooShort = 0;
     let tooLong = 0;
 
     ready = [];
-    words.forEach(function (word) {
-      const key = word.toLocaleLowerCase();
-      if (seen.has(key)) return repeats++;
-      seen.add(key);
-      if (!range) return;
-      const chars = toChars(word);
-      if (chars.length < range.min) return tooShort++;
-      if (chars.length > range.max) return tooLong++;
-      ready.push({ word, chars });
-    });
+    if (range) {
+      ({ inRange: ready, tooShort, tooLong } = filterByLength(
+        unique.map((word) => ({ word, chars: toChars(word) })),
+        range,
+      ));
+    }
     bagStale = true;
-
-    const uniqueRejected = [];
-    const seenRejected = new Set();
-    rejected.forEach(function (token) {
-      const key = token.toLocaleLowerCase();
-      if (seenRejected.has(key)) return;
-      seenRejected.add(key);
-      uniqueRejected.push(token);
-    });
 
     const skipped = [
       tooShort && `${tooShort} too short`,

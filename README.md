@@ -32,15 +32,16 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
   - Loading a puzzle also fills the **Create a puzzle** form with its word and settings, so **Generate wheel** recreates it with a fresh layout
 - Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (filters, sortable columns, wheel preview, scheduling, and bulk schedule/unschedule/print/delete). The open tab is kept in the URL, so a refresh returns to it, and the Manage table updates by itself after puzzles are saved.
 - No draft/published status: every saved puzzle is live. Scheduled for today = a daily puzzle; scheduled later = hidden until that day; unscheduled or past = in the free play pool. Delete puzzles you don't want.
-- Player page (site root) showing today's scheduled puzzles
-- **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with shared or randomized settings, and optionally save them all to the database
+- Player page (site root) with today's scheduled puzzles (several per day, with numbered pills to move between them), **free play** with unscheduled and past puzzles, and a daily streak kept in the player's browser
+- **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with the same or varied settings, pick which ones to keep, and print or save them to the database
+- Short words and hidden letters: Batch Generate and Sandbox disable hidden-letter choices the shortest word can't support and explain why, and the save API rejects a puzzle that hides too many letters (at least one ring letter always stays visible)
 - **Sandbox** (`sandbox.html`) — players paste their own word bank, choose length, direction, center letter, and hidden letters, and play wheels built from random words in the bank. Nothing is saved to the server.
 - Word lists (Batch Generate and Sandbox) keep letters-only words; words with apostrophes, hyphens, or numbers are skipped and listed so they can be fixed
 - Printing (browser print / Save as PDF) from Batch Generate or Manage Puzzles, with 1–8 puzzles per page and a solutions page at the end
 - One shared puzzle engine (`wheel.js` / `wheel.css`) used by every page, so a saved wheel looks the same everywhere: dashboard, preview, printout, and player page
 
 ### Not yet implemented
-- Player streak tracking and limiting play to once per day
+- Player progress on the server or tied to an account (streaks and solved/revealed status live in the browser for now)
 - A global admin setting for min/max word length on the dashboard (it still accepts 7–9)
 - Bluehost deployment
 
@@ -99,7 +100,7 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 
 1. Choose a `.txt` file. Any text works: one word per line, a comma-separated list, or a passage from a book. Spaces, line breaks, and punctuation between words separate them, and repeated words are listed once. Words with an apostrophe, hyphen, or number inside (`doesn't`, `well-known`, `abc123`) are skipped and named in the status line; edit them to letters only (e.g. `children's` → `children`) if you want them.
 2. Set the min and max length (anywhere from 3 to 12). Words in range appear as checkboxes, with the first 100 selected.
-3. Pick "Same settings for every word" and set them, or "Randomize settings for each word"
+3. Pick "Same settings for every word" and set them, or "Vary settings for each word". With "Same settings", hidden-letter choices that the shortest word (the min length) can't support are disabled, with the reason shown. With "Vary", each word gets a hidden count it can support.
 4. Click **Mass generate** to preview every puzzle
 5. Untick **Include** on any puzzle you don't want (or use **Include all** / **Include none**). **New layout** re-rolls one puzzle's wheel without changing its word.
 6. Click **Print**, choose how many puzzles per page (1–8), and print. Only included puzzles are printed; the solutions start on a new page.
@@ -114,7 +115,9 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 
 ### Player page (site root)
 
-Shows today's scheduled puzzles. Type a guess and click **Check**, or **Reveal** the answer.
+1. **Daily puzzles:** today's scheduled puzzles. With more than one, use the numbered pills or ‹ › arrows to move between them. Type a guess and click **Check**, **Reveal** the answer, or **Skip** to the next unfinished puzzle. Solved and revealed puzzles are remembered in this browser, so a refresh can't undo a Reveal.
+2. **Streak:** solving any daily puzzle without Reveal counts the day. Days with no puzzles scheduled don't break the streak.
+3. **Free play:** after finishing today's puzzles (or when there are none), keep playing unscheduled puzzles and puzzles from earlier days. Upcoming puzzles never appear in free play. Free play doesn't count toward the streak.
 
 ### Sandbox (`sandbox.html`)
 
@@ -156,6 +159,8 @@ Where `Intl.Segmenter` is unavailable (older browsers), the app falls back to `A
 
 - Unsaved puzzles are lost on refresh, including a mass-generated set that hasn't been saved
 - The Sandbox word bank lives in the player's browser (`localStorage`); there is no teacher-managed bank yet
+- Player streaks and daily progress are per browser: clearing site data or switching devices starts over
+- The player endpoints send each puzzle's letters in answer order so the browser can check guesses, so a determined player could read the answer from the network response
 - The save API doesn't check the admin session yet (the list, load, update, delete, and bulk APIs do)
 - Mass generate reads `.txt` files only. Languages written without spaces between words (Chinese, Japanese) come out as whole phrases rather than separate words.
 - Saved puzzles are always tagged with language `en` (no language picker yet)
