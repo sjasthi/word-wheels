@@ -32,10 +32,12 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
   - Loading a puzzle also fills the **Create a puzzle** form with its word and settings, so **Generate wheel** recreates it with a fresh layout
 - Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (filters, sortable columns, wheel preview, scheduling, and bulk schedule/unschedule/print/delete). The open tab is kept in the URL, so a refresh returns to it, and the Manage table updates by itself after puzzles are saved.
 - No draft/published status: every saved puzzle is live. Scheduled for today = a daily puzzle; scheduled later = hidden until that day; unscheduled or past = in the free play pool. Delete puzzles you don't want.
-- Player page (site root) with today's scheduled puzzles (several per day, with numbered pills to move between them), **free play** with unscheduled and past puzzles, and a daily streak kept in the player's browser
+- **Site-wide branding ("Sunny Playground"):** the same top bar on every page (crayon-style Word Wheel logo linking home, plus **Teacher login**, or **Dashboard · Log out** for a logged-in teacher) and the same footer (logo, credits, main links). Colors, font (Baloo 2) and shapes live in `theme.css`; the header and footer live in `partials/layout.php`. Favicon and phone home-screen icon in `assets/`.
+- **Player page (`index.php`, the site root)** with three independent tabs, each with its own address (`#today`, `#free`, `#sandbox`): **Today's Puzzle** (several per day, with numbered pills to move between them, and a daily streak kept in the player's browser), **Free Play** (unscheduled and past puzzles, always open), and **Sandbox**
+- Mobile-friendly: tabs, buttons and inputs are at least 44px tall, and every page fits a 360px-wide phone without sideways scrolling
 - **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with the same or varied settings, pick which ones to keep, and print or save them to the database
 - Short words and hidden letters: Batch Generate and Sandbox disable hidden-letter choices the shortest word can't support and explain why, and the save API rejects a puzzle that hides too many letters (at least one ring letter always stays visible)
-- **Sandbox** (`sandbox.html`) — players paste their own word bank, choose length, direction, center letter, and hidden letters, and play wheels built from random words in the bank. Nothing is saved to the server.
+- **Sandbox** (a tab on the player page) — players paste their own word bank, choose length, direction, center letter, and hidden letters, and play wheels built from random words in the bank. Nothing is saved to the server.
 - Word lists (Batch Generate and Sandbox) keep letters-only words; words with apostrophes, hyphens, or numbers are skipped and listed so they can be fixed
 - Printing (browser print / Save as PDF) from Batch Generate or Manage Puzzles, with 1–8 puzzles per page and a solutions page at the end
 - Players can print the puzzle on screen (daily, free play, or Sandbox): just the wheel and an answer line, no solution
@@ -71,7 +73,7 @@ git clone https://github.com/sjasthi/word-wheels.git
 ```
 2. Serve the project folder with PHP (for example from XAMPP's `htdocs`)
 3. Import `sql/wordwheel_schema.sql` into MySQL and set the credentials in `api/db.php`
-4. Open the site root for the player page, or `admin/` to log in as an admin
+4. Open the site root for the player page (`index.php`), or `admin/login.php` to log in as a teacher
 
 If your database was created from an older version of the schema, run the migrations in `sql/` once instead of re-importing:
 
@@ -80,6 +82,12 @@ If your database was created from an older version of the schema, run the migrat
 - `sql/migrate_add_layout.sql` — adds the saved wheel layout columns (`start_slot`, `ring_order`, `hidden_indexes`). Every puzzle must have a layout, so delete and re-create any puzzles saved before this migration; they show an "invalid layout" message.
 
 The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, and `.css` files on every load, so edits show up without a hard refresh.
+
+### Deploying to Bluehost
+
+Upload every file that changed together; pages break if one shared file (for example `wheel.js`, `theme.css`, or `partials/layout.php`) is older than the pages that use it. `git diff --name-only <last-deployed-commit> HEAD` lists them. Never upload your local `api/db.php` over the server's copy: it holds the database credentials.
+
+The root `.htaccess` also makes `index.php` the home page. `index.html` and `sandbox.html` are only small forwarding pages for old links and can be deleted once nothing points at them.
 
 ---
 
@@ -114,16 +122,19 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 3. Click a row to preview its wheel, set or clear its scheduled date, print, or delete it. Give a puzzle today's date to make it a daily puzzle.
 4. Tick rows (the header checkbox ticks only the rows shown) to **Schedule** them on a date, **Unschedule**, **Print**, or **Delete** them in one step. Changes that affect today's daily puzzles ask first.
 
-### Player page (site root)
+### Player page (`index.php`, the site root)
+
+The tabs at the top switch between **Today's Puzzle**, **Free Play**, and **Sandbox**. The open tab is kept in the URL, so refreshing or sharing a link (e.g. `…/index.php#free`) opens the same tab. Each tab works on its own; nothing in one tab depends on another.
+
 
 1. **Daily puzzles:** today's scheduled puzzles. With more than one, use the numbered pills or ‹ › arrows to move between them. Type a guess and click **Check**, **Reveal** the answer, or **Skip** to the next unfinished puzzle. Solved and revealed puzzles are remembered in this browser, so a refresh can't undo a Reveal.
 2. **Streak:** solving any daily puzzle without Reveal counts the day. Days with no puzzles scheduled don't break the streak.
-3. **Free play:** after finishing today's puzzles (or when there are none), keep playing unscheduled puzzles and puzzles from earlier days. Upcoming puzzles never appear in free play. Free play doesn't count toward the streak.
+3. **Free Play:** always open. Plays unscheduled puzzles and puzzles from earlier days, one at a time; **Skip** or **Next puzzle** moves on. Upcoming puzzles never appear in free play. Free play doesn't count toward the streak.
 4. **Print:** the **Print** button (or Ctrl+P) prints just the puzzle on screen: the title, the wheel, and a blank answer line. No answer is printed, but a wheel that has already been solved or revealed prints with its letters filled in.
 
-### Sandbox (`sandbox.html`)
+### Sandbox tab
 
-Linked from the bottom of the player page.
+The third tab on the player page (old `sandbox.html` links forward to it).
 
 1. Paste words into the **Word bank**: one per line, comma-separated, or a paragraph. The status line shows how many fit and which were skipped (too short, too long, repeats, or apostrophes/hyphens/numbers).
 2. In **Settings**, choose the word length (3–12), direction, center letter, and hidden letters. Hidden-letter choices that the shortest allowed word can't support are disabled, with the reason shown.

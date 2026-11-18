@@ -1,0 +1,363 @@
+/* ============================================================
+   Word Wheel — site theme ("Sunny Playground")
+   ============================================================
+   Every page loads this after Bootstrap. Brand colors, font and
+   shapes are defined once here as CSS variables; Bootstrap's own
+   variables are pointed at them so its buttons, tabs, alerts and
+   forms match without a build step. Change a color here and the
+   whole site (wheel included, via wheel.css) follows.
+   ============================================================ */
+
+:root {
+  /* ---- Brand palette ---- */
+  --ww-coral: #C8431F;        /* primary: buttons, links, active tab */
+  --ww-coral-dark: #A8361A;   /* hover / pressed */
+  --ww-coral-ink: #B0381A;    /* coral used as text in the logo */
+  --ww-sun: #FFC93C;          /* wheel hub, highlights */
+  --ww-gold: #A26900;         /* gold used as text in the logo */
+  --ww-teal: #0F7B6C;         /* correct / solved */
+  --ww-teal-ink: #0B6659;
+  --ww-brick: #B3261E;        /* wrong / delete */
+  --ww-ink: #2B2118;          /* body text */
+  --ww-muted: #6B5A4A;        /* secondary text (5.9:1 on cream) */
+  --ww-cream: #FFF8EE;        /* page background */
+  --ww-sand: #F5EBDD;         /* soft buttons, subtle fills */
+  --ww-line: #F0E2CC;         /* borders, dividers */
+  --ww-white: #FFFFFF;
+
+  /* ---- Type & shape ---- */
+  --ww-font: "Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ww-radius: 16px;
+  --ww-radius-sm: 10px;
+  --ww-radius-pill: 999px;
+  --ww-tap: 44px;             /* minimum touch target */
+
+  /* ---- Wheel (read by wheel.css) ---- */
+  --ww-wheel-face: var(--ww-white);
+  --ww-wheel-ring: var(--ww-line);
+  --ww-tile-bg: var(--ww-white);
+  --ww-tile-border: var(--ww-coral);
+  --ww-tile-text: var(--ww-ink);
+  --ww-hub-bg: var(--ww-sun);
+  --ww-hub-text: var(--ww-ink);
+  --ww-tile-blank: #B49A78;
+  --ww-tile-revealed: var(--ww-teal);
+
+  /* ---- Bootstrap, pointed at the brand ---- */
+  --bs-body-font-family: var(--ww-font);
+  --bs-body-color: var(--ww-ink);
+  --bs-body-color-rgb: 43, 33, 24;
+  --bs-body-bg: var(--ww-cream);
+  --bs-secondary-color: var(--ww-muted);
+  --bs-tertiary-bg: var(--ww-sand);
+  --bs-border-color: var(--ww-line);
+  --bs-border-radius: var(--ww-radius-sm);
+  --bs-border-radius-lg: var(--ww-radius);
+  --bs-link-color: var(--ww-coral);
+  --bs-link-color-rgb: 200, 67, 31;
+  --bs-link-hover-color: var(--ww-coral-dark);
+  --bs-link-hover-color-rgb: 168, 54, 26;
+  --bs-primary: var(--ww-coral);
+  --bs-primary-rgb: 200, 67, 31;
+  --bs-success: var(--ww-teal);
+  --bs-success-rgb: 15, 123, 108;
+  --bs-danger: var(--ww-brick);
+  --bs-danger-rgb: 179, 38, 30;
+  --bs-warning: var(--ww-sun);
+  --bs-warning-rgb: 255, 201, 60;
+  --bs-focus-ring-color: rgba(200, 67, 31, 0.3);
+
+  /* alert / badge tints */
+  --bs-primary-bg-subtle: #FBE3DA;
+  --bs-primary-border-subtle: #F2BFAE;
+  --bs-primary-text-emphasis: #8F2E14;
+  --bs-success-bg-subtle: #E3F3F0;
+  --bs-success-border-subtle: #B7DDD6;
+  --bs-success-text-emphasis: #0B5E53;
+  --bs-danger-bg-subtle: #FBE6E4;
+  --bs-danger-border-subtle: #F2C2BE;
+  --bs-danger-text-emphasis: #8E1E17;
+  --bs-warning-bg-subtle: #FFF1CC;
+  --bs-warning-border-subtle: #FFE08A;
+  --bs-warning-text-emphasis: #6B4B00;
+  --bs-secondary-bg-subtle: var(--ww-sand);
+  --bs-secondary-border-subtle: var(--ww-line);
+  --bs-secondary-text-emphasis: var(--ww-ink);
+  --bs-info-bg-subtle: #FFF1CC;
+  --bs-info-border-subtle: #FFE08A;
+  --bs-info-text-emphasis: #6B4B00;
+}
+
+body {
+  font-family: var(--ww-font);
+  background: var(--ww-cream);
+  color: var(--ww-ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.ww-main { flex: 1 0 auto; }
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { font-weight: 800; }
+.text-muted { color: var(--ww-muted) !important; }
+.bg-light { background-color: var(--ww-cream) !important; }
+
+/* ---- Cards ---- */
+.card {
+  --bs-card-border-color: var(--ww-line);
+  --bs-card-border-radius: var(--ww-radius);
+  --bs-card-inner-border-radius: calc(var(--ww-radius) - 1px);
+  --bs-card-cap-bg: var(--ww-white);
+}
+.shadow-sm { box-shadow: 0 2px 0 var(--ww-line) !important; }
+
+/* ---- Buttons ---- */
+.btn { font-weight: 700; }
+.btn-primary {
+  --bs-btn-bg: var(--ww-coral);
+  --bs-btn-border-color: var(--ww-coral);
+  --bs-btn-hover-bg: var(--ww-coral-dark);
+  --bs-btn-hover-border-color: var(--ww-coral-dark);
+  --bs-btn-active-bg: var(--ww-coral-dark);
+  --bs-btn-active-border-color: var(--ww-coral-dark);
+  --bs-btn-disabled-bg: var(--ww-coral);
+  --bs-btn-disabled-border-color: var(--ww-coral);
+  --bs-btn-focus-shadow-rgb: 200, 67, 31;
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--ww-coral);
+  --bs-btn-border-color: var(--ww-coral);
+  --bs-btn-hover-bg: var(--ww-coral);
+  --bs-btn-hover-border-color: var(--ww-coral);
+  --bs-btn-active-bg: var(--ww-coral-dark);
+  --bs-btn-active-border-color: var(--ww-coral-dark);
+  --bs-btn-disabled-color: var(--ww-coral);
+  --bs-btn-disabled-border-color: var(--ww-coral);
+  --bs-btn-focus-shadow-rgb: 200, 67, 31;
+}
+.btn-success {
+  --bs-btn-bg: var(--ww-teal);
+  --bs-btn-border-color: var(--ww-teal);
+  --bs-btn-hover-bg: var(--ww-teal-ink);
+  --bs-btn-hover-border-color: var(--ww-teal-ink);
+  --bs-btn-active-bg: var(--ww-teal-ink);
+  --bs-btn-active-border-color: var(--ww-teal-ink);
+  --bs-btn-disabled-bg: var(--ww-teal);
+  --bs-btn-disabled-border-color: var(--ww-teal);
+}
+.btn-outline-success {
+  --bs-btn-color: var(--ww-teal);
+  --bs-btn-border-color: var(--ww-teal);
+  --bs-btn-hover-bg: var(--ww-teal);
+  --bs-btn-hover-border-color: var(--ww-teal);
+}
+/* Soft neutral buttons (Reveal, Print, Skip…) */
+.btn-outline-secondary, .btn-light {
+  --bs-btn-color: var(--ww-ink);
+  --bs-btn-bg: var(--ww-sand);
+  --bs-btn-border-color: var(--ww-sand);
+  --bs-btn-hover-color: var(--ww-ink);
+  --bs-btn-hover-bg: #EADCC8;
+  --bs-btn-hover-border-color: #EADCC8;
+  --bs-btn-active-color: var(--ww-ink);
+  --bs-btn-active-bg: #E2D1BA;
+  --bs-btn-active-border-color: #E2D1BA;
+  --bs-btn-disabled-color: var(--ww-muted);
+  --bs-btn-disabled-bg: var(--ww-sand);
+  --bs-btn-disabled-border-color: var(--ww-sand);
+}
+.btn-secondary {
+  --bs-btn-bg: var(--ww-muted);
+  --bs-btn-border-color: var(--ww-muted);
+}
+.btn-danger {
+  --bs-btn-bg: var(--ww-brick);
+  --bs-btn-border-color: var(--ww-brick);
+  --bs-btn-hover-bg: #8E1E17;
+  --bs-btn-hover-border-color: #8E1E17;
+}
+.btn-outline-danger {
+  --bs-btn-color: var(--ww-brick);
+  --bs-btn-border-color: var(--ww-brick);
+  --bs-btn-hover-bg: var(--ww-brick);
+  --bs-btn-hover-border-color: var(--ww-brick);
+}
+.btn-link { --bs-btn-color: var(--ww-coral); --bs-btn-hover-color: var(--ww-coral-dark); }
+
+/* ---- Forms ---- */
+.form-control, .form-select { border-color: var(--ww-line); border-width: 2px; }
+.form-control:focus, .form-select:focus {
+  border-color: var(--ww-coral);
+  box-shadow: 0 0 0 0.2rem rgba(200, 67, 31, 0.2);
+}
+.form-check-input:checked { background-color: var(--ww-coral); border-color: var(--ww-coral); }
+.form-check-input:focus { border-color: var(--ww-coral); box-shadow: 0 0 0 0.2rem rgba(200, 67, 31, 0.2); }
+
+/* ---- Tabs (admin uses nav-tabs, the player page uses .ww-tabs) ---- */
+.nav-tabs {
+  --bs-nav-tabs-border-color: var(--ww-line);
+  --bs-nav-tabs-link-active-color: var(--ww-coral);
+  --bs-nav-tabs-link-active-bg: var(--ww-white);
+  --bs-nav-tabs-link-active-border-color: var(--ww-line) var(--ww-line) var(--ww-white);
+  --bs-nav-link-color: var(--ww-ink);
+  --bs-nav-link-hover-color: var(--ww-coral);
+  font-weight: 700;
+}
+
+.ww-tabs {
+  gap: 6px;
+  padding: 6px;
+  background: var(--ww-sand);
+  border-radius: var(--ww-radius-pill);
+}
+.ww-tabs .nav-link {
+  min-height: var(--ww-tap);
+  border-radius: var(--ww-radius-pill);
+  color: var(--ww-ink);
+  font-weight: 700;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+}
+.ww-tabs .nav-link:hover { color: var(--ww-coral); }
+.ww-tabs .nav-link.active {
+  background: var(--ww-coral);
+  color: var(--ww-white);
+}
+
+/* ---- Alerts & badges ---- */
+.alert { border-radius: var(--ww-radius-sm); font-weight: 600; }
+.badge { font-weight: 700; }
+.text-bg-warning { color: var(--ww-ink) !important; }
+
+/* ---- Tables (admin) ---- */
+.table { --bs-table-bg: var(--ww-white); --bs-table-hover-bg: #FFF4E2; --bs-table-active-bg: #FFEED3; }
+.table-light { --bs-table-bg: var(--ww-sand); --bs-table-color: var(--ww-ink); }
+
+/* ============================================================
+   Site header (top bar) — partials/layout.php
+   ============================================================ */
+.ww-topbar {
+  background: var(--ww-white);
+  border-bottom: 2px solid var(--ww-line);
+}
+.ww-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+}
+.ww-brand {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ww-radius-sm);
+  text-decoration: none;
+}
+.ww-brand svg { display: block; height: 50px; width: auto; }
+.ww-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ww-topbar-actions .btn {
+  min-height: var(--ww-tap);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ww-radius-pill);
+  padding: 0 16px;
+}
+@media (max-width: 400px) {
+  .ww-brand svg { height: 38px; }
+  .ww-topbar-actions .btn { padding: 0 12px; font-size: 0.95rem; }
+}
+
+/* Wide pages (the dashboard): header and footer line up with the
+   page's 1400px content instead of Bootstrap's narrower .container */
+.ww-wide .ww-topbar .container,
+.ww-wide .ww-footer .container { max-width: 1400px; }
+
+/* ============================================================
+   Site footer — partials/layout.php
+   ============================================================ */
+.ww-footer {
+  margin-top: 40px;
+  padding: 24px 0 28px;
+  border-top: 2px solid var(--ww-line);
+  background: var(--ww-white);
+  color: var(--ww-muted);
+  font-size: 0.95rem;
+}
+.ww-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+.ww-footer-brand { display: flex; align-items: center; gap: 10px; }
+.ww-footer-brand svg { flex: 0 0 auto; }
+.ww-footer-name { font-weight: 800; color: var(--ww-ink); }
+.ww-footer nav { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.ww-footer nav a {
+  font-weight: 700;
+  text-decoration: none;
+  min-height: var(--ww-tap);
+  display: inline-flex;
+  align-items: center;
+}
+.ww-footer nav a:hover { text-decoration: underline; }
+
+/* ============================================================
+   Player page (index.php)
+   ============================================================ */
+.ww-player .ww-tagline { color: var(--ww-muted); font-size: 1.1rem; }
+
+/* Bigger touch targets for kids on phones */
+.ww-player .btn,
+.ww-player .form-control { min-height: var(--ww-tap); }
+.ww-player .btn { border-radius: var(--ww-radius-pill); padding-left: 1.1rem; padding-right: 1.1rem; }
+.ww-player .form-control { border-radius: var(--ww-radius-pill); padding-left: 1.1rem; font-size: 1.1rem; }
+.ww-player .input-group > .form-control { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ww-player .input-group > .btn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.ww-player .form-select { min-height: var(--ww-tap); }
+.ww-player textarea.form-control { border-radius: var(--ww-radius-sm); font-size: 1rem; }
+
+/* Daily puzzle pills: one per puzzle, colored by status */
+.ww-pill {
+  width: var(--ww-tap);
+  height: var(--ww-tap);
+  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50% !important;
+  font-size: 1.05rem;
+}
+.ww-pill.is-current { box-shadow: 0 0 0 3px var(--ww-cream), 0 0 0 6px var(--ww-sun); }
+.ww-arrow {
+  width: var(--ww-tap);
+  height: var(--ww-tap);
+  padding: 0 !important;
+  border-radius: 50% !important;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.ww-streak {
+  background: var(--ww-sun);
+  color: var(--ww-ink);
+  border-radius: var(--ww-radius-pill);
+  padding: 4px 14px;
+  font-weight: 700;
+}
+
+/* ---- Printing: just the title, the current wheel and an answer line ---- */
+@media print {
+  body { background: #fff !important; display: block; min-height: 0; }
+  .ww-topbar, .ww-footer, .ww-tabs { display: none !important; }
+  .card { border: 0 !important; box-shadow: none !important; }
+  .ww-player .wheel { --wheel-size: 12cm; }
+}
