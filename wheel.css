@@ -1,5 +1,7 @@
 /* Word Wheel — shared wheel styles (used with wheel.js).
-   Set --wheel-size on .wheel or an ancestor to resize a wheel. */
+   Set --wheel-size on .wheel or an ancestor to resize a wheel.
+   Colors come from theme.css (--ww-*); the fallbacks after each
+   comma keep the wheel readable on a page without the theme. */
 
 :root {
   --wheel-size: min(340px, 82vw);
@@ -10,7 +12,7 @@
   width: var(--wheel-size);
   aspect-ratio: 1;
   margin: 0 auto;
-  /* keep the blue hub and tile borders when printing */
+  /* keep the hub and tile colors when printing */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -21,13 +23,13 @@
   height: 100%;
 }
 .wheel svg circle {
-  fill: #f8f9fa;
-  stroke: #adb5bd;
-  stroke-width: 0.6;
+  fill: var(--ww-wheel-face, #f8f9fa);
+  stroke: var(--ww-wheel-ring, #adb5bd);
+  stroke-width: 1;
 }
 .wheel svg line {
-  stroke: #ced4da;
-  stroke-width: 0.5;
+  stroke: var(--ww-wheel-ring, #ced4da);
+  stroke-width: 0.6;
 }
 
 .tile {
@@ -36,27 +38,31 @@
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: #fff;
-  border: 2px solid #0d6efd;
+  background: var(--ww-tile-bg, #fff);
+  border: max(2px, calc(var(--wheel-size) * 0.009)) solid var(--ww-tile-border, #0d6efd);
+  color: var(--ww-tile-text, #212529);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 800;
   font-size: calc(var(--wheel-size) * 0.08);
+  line-height: 1;
   text-transform: uppercase;
   user-select: none;
 }
 .tile.hub {
   width: 20%;
-  background: #0d6efd;
-  color: #fff;
+  background: var(--ww-hub-bg, #0d6efd);
+  border-color: var(--ww-hub-bg, #0d6efd);
+  color: var(--ww-hub-text, #fff);
 }
 .tile.blank {
   border-style: dashed;
-  color: #adb5bd;
+  border-color: var(--ww-tile-blank, #adb5bd);
+  color: var(--ww-tile-blank, #adb5bd);
 }
 .tile.revealed {
-  color: #198754;
-  border-color: #198754;
+  color: var(--ww-tile-revealed, #198754);
+  border-color: var(--ww-tile-revealed, #198754);
   border-style: solid;
 }

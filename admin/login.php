@@ -1,7 +1,11 @@
-<?php header('Content-Type: text/html; charset=utf-8'); ?>
 <?php
+// ============================================================
+// Word Wheel — Teacher (admin) login
+// ============================================================
+header('Content-Type: text/html; charset=utf-8');
 session_start();
 require_once '../api/db.php';
+require_once __DIR__ . '/../partials/layout.php';
 
 $error = '';
 
@@ -41,16 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Login — Word Wheel</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <?php ww_head('Teacher Login', '../'); ?>
 </head>
-<body class="bg-light">
-    <div class="container py-5" style="max-width: 400px">
+<body>
+<?php ww_header('../', 'login'); ?>
+<main class="ww-main">
+    <div class="container py-5" style="max-width: 420px">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h1 class="h4 mb-4">Word Wheel — Admin</h1>
+                <h1 class="h3 mb-1">Teacher login</h1>
+                <p class="text-muted mb-4">Create, schedule and print puzzles.</p>
 
                 <?php if ($error): ?>
                     <div class="alert alert-danger py-2"><?= htmlspecialchars($error) ?></div>
@@ -67,10 +71,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="password" id="password" name="password" class="form-control"
                                autocomplete="current-password" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Log in</button>
+                    <button type="submit" class="btn btn-primary w-100" style="min-height: 44px">Log in</button>
                 </form>
             </div>
         </div>
+        <p class="text-center mt-3 mb-0"><a href="../index.php">← Back to the puzzles</a></p>
     </div>
+</main>
+<?php ww_footer('../'); ?>
 </body>
 </html>

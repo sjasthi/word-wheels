@@ -1,9 +1,11 @@
 // ============================================================
-// Word Wheel — Sandbox
+// Word Wheel — Sandbox (the Sandbox tab on index.php)
 // ============================================================
 // The player pastes a word bank, picks settings, and plays wheels
 // built from random words in the bank. Nothing is sent to the server;
 // the bank and settings are remembered in this browser only.
+// Its elements use sb-prefixed ids so they don't clash with the
+// Today's Puzzle and Free Play tabs on the same page.
 // ============================================================
 
 $(function () {
@@ -35,7 +37,7 @@ $(function () {
   }
 
   function showResult(type, message) {
-    $("#result").html(alertBox(type, message));
+    $("#sbResult").html(alertBox(type, message));
   }
 
   // ---- Setup cards ----
@@ -216,16 +218,16 @@ $(function () {
   }
 
   function render() {
-    renderWheel(puzzle, $("#wheel"));
+    renderWheel(puzzle, $("#sbWheel"));
   }
 
   function showPuzzle(p) {
     puzzle = p;
     render();
-    $("#guessInput").val("").prop("disabled", false);
-    $("#result").empty();
+    $("#sbGuessInput").val("").prop("disabled", false);
+    $("#sbResult").empty();
     $("#sbNewWordBtn").removeClass("btn-primary").addClass("btn-outline-primary");
-    $("#puzzleArea").removeClass("d-none");
+    $("#sbPuzzleArea").removeClass("d-none");
   }
 
   function playNextWord() {
@@ -239,7 +241,7 @@ $(function () {
   function finishPuzzle() {
     puzzle.solved = true;
     render();
-    $("#guessInput").prop("disabled", true);
+    $("#sbGuessInput").prop("disabled", true);
     $("#sbNewWordBtn").removeClass("btn-outline-primary").addClass("btn-primary");
   }
 
@@ -252,12 +254,12 @@ $(function () {
     $(".sb-toggle").each(function () {
       setCardOpen($(this), false);
     });
-    $("#guessInput").trigger("focus");
+    $("#sbGuessInput").trigger("focus");
   });
 
   $("#sbNewWordBtn").on("click", function () {
     playNextWord();
-    $("#guessInput").trigger("focus");
+    $("#sbGuessInput").trigger("focus");
   });
 
   $("#sbRelayoutBtn").on("click", function () {
@@ -265,11 +267,11 @@ $(function () {
     showPuzzle(buildPuzzle(settingsFor(puzzle.chars)));
   });
 
-  $("#guessForm").on("submit", function (e) {
+  $("#sbGuessForm").on("submit", function (e) {
     e.preventDefault();
     if (!puzzle || puzzle.solved) return;
 
-    const outcome = checkGuess(puzzle, $("#guessInput").val());
+    const outcome = checkGuess(puzzle, $("#sbGuessInput").val());
     if (outcome === "empty") return showResult("warning", "Type your answer first.");
     if (outcome === "correct") {
       finishPuzzle();
@@ -279,10 +281,10 @@ $(function () {
     }
   });
 
-  $("#revealBtn").on("click", function () {
+  $("#sbRevealBtn").on("click", function () {
     if (!puzzle) return;
     finishPuzzle();
-    showResult("secondary", "Answer: " + puzzle.chars.join(""));
+    showResult("secondary", "Answer: " + puzzle.chars.join("").toLocaleUpperCase());
   });
 
   // Print shows only the current wheel (see the @media print styles).

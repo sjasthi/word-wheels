@@ -1,5 +1,9 @@
+# The home page is index.php (it includes the shared header/footer).
+# index.html is only a forwarding stub for old links.
+DirectoryIndex index.php index.html
+
 # Make browsers revalidate the front-end files on every load so edits to
-# script.js / index.html show up without a hard refresh. Unchanged files
+# the .js / .css files show up without a hard refresh. Unchanged files
 # still come back as a cheap 304 Not Modified (via ETag/Last-Modified).
 <IfModule mod_headers.c>
     <FilesMatch "\.(html|js|css)$">

@@ -12,15 +12,13 @@ if (empty($_SESSION['admin'])) {
     header('Location: login.php');
     exit;
 }
+
+require_once __DIR__ . '/../partials/layout.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin Dashboard — Word Wheel</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
-    <link rel="stylesheet" href="../wheel.css">
+    <?php ww_head('Teacher Dashboard', '../'); ?>
     <style>
       /* Override wheel size for the dashboard (smaller than the default 340px) */
       :root { --wheel-size: min(260px, 80vw); }
@@ -34,23 +32,23 @@ if (empty($_SESSION['admin'])) {
 
       /* Manage table */
       .puzzle-row { cursor: pointer; }
-      .puzzle-row:hover { background-color: #f8f9fa; }
+      .puzzle-row:hover { background-color: #FFF4E2; }
       .puzzle-row td:first-child { width: 40px; }
       #manageTable th { white-space: nowrap; }
       #manageTable th.sortable { cursor: pointer; user-select: none; }
-      #manageTable th.sortable:hover { background-color: #e9ecef; }
-      #manageTable th .sort-arrow { display: inline-block; width: 0.9em; color: #0d6efd; }
+      #manageTable th.sortable:hover { background-color: #EADCC8; }
+      #manageTable th .sort-arrow { display: inline-block; width: 0.9em; color: var(--ww-coral); }
       #manageTable td { vertical-align: middle; }
-      #manageFilters .form-label { font-size: 0.8rem; margin-bottom: 0.15rem; color: #6c757d; }
+      #manageFilters .form-label { font-size: 0.85rem; margin-bottom: 0.15rem; color: var(--ww-muted); }
 
-      .detail-row td { background: #f8f9fa; border-top: none; padding: 1.25rem; }
+      .detail-row td { background: var(--ww-cream); border-top: none; padding: 1.25rem; }
       .detail-row .preview-wheel { --wheel-size: min(220px, 70vw); }
 
       /* Bulk toolbar */
       #bulkToolbar {
         position: sticky; top: 0; z-index: 10;
-        background: #0d6efd; color: #fff;
-        border-radius: 0.375rem;
+        background: var(--ww-coral); color: #fff;
+        border-radius: var(--ww-radius-sm);
         padding: 0.5rem 1rem;
         display: none;
         align-items: center;
@@ -85,13 +83,11 @@ if (empty($_SESSION['admin'])) {
       }
     </style>
 </head>
-<body class="bg-light">
-<div class="container-fluid py-4" style="max-width: 1400px">
+<body class="ww-wide">
+<?php ww_header('../', 'dashboard'); ?>
+<main class="ww-main container-fluid py-4" style="max-width: 1400px">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0">Word Wheel — Admin Dashboard</h1>
-        <a href="logout.php" class="btn btn-sm btn-outline-secondary">Log out</a>
-    </div>
+    <h1 class="h3 mb-4">Teacher Dashboard</h1>
 
     <!-- ── Tabs ── -->
     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
@@ -533,8 +529,9 @@ if (empty($_SESSION['admin'])) {
             </div>
         </div>
     </div>
-</div>
+</main>
 
+<?php ww_footer('../'); ?>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
