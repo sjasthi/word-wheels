@@ -42,7 +42,15 @@ function generate_hint_draft(string $word): array {
         $draft['usage'][]  = $reply['usage'];
 
         if (!$reply['ok']) {
-            $draft['error'] = $reply['error'];      // service problems aren't retried
+            if ($draft['hints']) {
+                // The first draft failed the checks and the retry couldn't
+                // reach the AI: keep the first draft and say why it failed.
+                $draft['code']  = 'checks_failed';
+                $draft['error'] = 'The AI hints failed the checks: ' . $draft['error']
+                    . ' (Trying again failed: ' . $reply['error'] . ') Edit them yourself or try again.';
+            } else {
+                $draft['error'] = $reply['error'];
+            }
             return $draft;
         }
 

@@ -49,35 +49,44 @@ function hint_word_is_valid(string $word): bool {
     return $count >= HINT_WORD_MIN && $count <= HINT_WORD_MAX;
 }
 
-// The answer plus simple English stems: "fishing" → "fish",
-// "running" → "run", "baking" → "bak", "bake", "early" → "earli". Used to catch hints
-// that give the answer away in another form.
+// The answer plus simple English stems, used to catch hints that give
+// the answer away in another form:
+//   -ing / -ed   fishing → fish, running → run, baking → bake, jumped → jump
+//   plurals      apples → apple, boxes → box, dishes → dish
+//   y → i        early → earli (earlier), happy → happi (happiest)
+// Endings like -er and -ly are left alone on purpose: they're usually
+// part of the word itself (butter, letter, early), and stripping them
+// gives everyday words (but, let, ear) that would block normal hints.
 function hint_answer_forms(string $word): array {
     $word  = hint_lower($word);
+    $len   = mb_strlen($word);
     $forms = [$word];
 
-    // y → i before an ending: early → earlier, happy → happiest
-    if (mb_strlen($word) >= 4 && str_ends_with($word, 'y')) {
+    if ($len >= 4 && str_ends_with($word, 'y')) {
         $forms[] = mb_substr($word, 0, -1) . 'i';
     }
 
-    foreach (['ing', 'ed', 'es', 'er', 'ly', 's'] as $suffix) {
+    foreach (['ing', 'ed'] as $suffix) {
         if (!str_ends_with($word, $suffix)) {
             continue;
         }
-        $stem = mb_substr($word, 0, mb_strlen($word) - mb_strlen($suffix));
+        $stem = mb_substr($word, 0, $len - mb_strlen($suffix));
         if (mb_strlen($stem) < 3) {
             continue;
         }
         $forms[] = $stem;
+        $forms[] = $stem . 'e';                         // baking → bake
+        $stemLen = mb_strlen($stem);
+        if ($stemLen >= 4 && mb_substr($stem, -1) === mb_substr($stem, -2, 1)) {
+            $forms[] = mb_substr($stem, 0, $stemLen - 1); // running → run
+        }
+    }
 
-        $len = mb_strlen($stem);
-        if ($len >= 4 && mb_substr($stem, -1) === mb_substr($stem, -2, 1)) {
-            $forms[] = mb_substr($stem, 0, $len - 1);   // running → run
-        }
-        if ($suffix === 'ing' || $suffix === 'ed') {
-            $forms[] = $stem . 'e';                     // baking → bake
-        }
+    // Plurals: boxes → box (after ch, sh, x, z, ss, o), apples → apple
+    if (preg_match('/(ch|sh|x|z|ss|o)es$/u', $word) && $len - 2 >= 3) {
+        $forms[] = mb_substr($word, 0, -2);
+    } elseif (str_ends_with($word, 's') && !str_ends_with($word, 'ss') && $len - 1 >= 3) {
+        $forms[] = mb_substr($word, 0, -1);
     }
 
     return array_values(array_unique($forms));

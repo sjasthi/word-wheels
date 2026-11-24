@@ -50,7 +50,14 @@ expect('leak: e-drop stem', hint_leaks_answer('What you do to bake a cake.', 'ba
 expect('leak: y to i (early → earlier)', hint_leaks_answer('Happening earlier than usual.', 'early'));
 expect('leak: y to i (happy → happiest)', hint_leaks_answer('The happiest day.', 'happy'));
 expect('leak: short word plural', hint_leaks_answer('Cats like to nap.', 'cat'));
-expect('no leak: clean theme', !hint_leaks_answer('Something you might do at a lake.', 'fishing'));
+expect('leak: plural stem (boxes → box)', hint_leaks_answer('Put the box away.', 'boxes'));
+expect('leak: plural stem (apples → apple)', hint_leaks_answer('An apple a day.', 'apples'));
+expect('no leak: butter vs "but"', !hint_leaks_answer('Yellow spread, but soft', 'butter'));
+expect('no leak: letter vs "let"', !hint_leaks_answer('Let us mail it', 'letter'));
+expect('no leak: notes vs "not"', !hint_leaks_answer('Do not forget these', 'notes'));
+expect('no leak: early vs "ear"', !hint_leaks_answer('Use your ear to listen', 'early'));
+expect('no leak: apples vs "apply"', !hint_leaks_answer('Apply some care', 'apples'));
+expect('no leak: clean theme',!hint_leaks_answer('Something you might do at a lake.', 'fishing'));
 expect('no leak: short word inside another word', !hint_leaks_answer('A category of pets.', 'cat'));
 expect('no leak: short stem inside another word', !hint_leaks_answer('Planes land on a runway.', 'running'));
 
