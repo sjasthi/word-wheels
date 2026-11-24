@@ -1,0 +1,32 @@
+# Word list for tools/eval_hints.php
+# Format: word,expected   (expected = real or reject)
+# Keep the prompt's own examples (umbrella, pumpkin) out of this list,
+# so the eval measures whether the model generalizes.
+
+# More than one common meaning
+spring,real
+bat,real
+bark,real
+match,real
+
+# Word forms the leak check has to handle
+fishing,real
+jumped,real
+running,real
+happiest,real
+apples,real
+
+# Everyday nouns, verbs, adjectives
+elephant,real
+library,real
+bicycle,real
+dolphin,real
+whisper,real
+brave,real
+butterfly,real
+cat,real
+
+# Should be refused (typo, gibberish)
+helllo,reject
+xqzvt,reject
+elefant,reject

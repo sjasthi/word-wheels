@@ -22,6 +22,9 @@ const HINT_PROMPT_VERSION = 'v3';
 
 const HINTS_TIMEOUT_SECONDS = 20;
 
+// Seconds to wait before each retry after a temporary provider error.
+const LLM_RETRY_DELAYS = [1, 2];
+
 // AI hints are switched off until a key is configured.
 function hints_enabled(): bool {
     return HINTS_API_KEY !== '';
@@ -71,24 +74,33 @@ function llm_hint_schema(): array {
     ];
 }
 
-// The generateContent request body. $feedback explains why a previous
-// attempt was rejected, so a retry can fix it.
-function llm_request_body(string $word, ?string $feedback = null): array {
+// The user message for a hint request. $feedback explains why a
+// previous attempt was rejected, so a retry can fix it.
+function llm_hint_user_text(string $word, ?string $feedback = null): string {
     $userText = "Target word: " . $word;
     if ($feedback !== null) {
         $userText .= "\n\nYour previous hints were rejected: " . $feedback
                    . "\nWrite new hints that follow every rule.";
     }
+    return $userText;
+}
 
+// A generateContent request body that asks for JSON matching $schema.
+function llm_json_body(string $system, string $user, array $schema): array {
     return [
-        'systemInstruction' => ['parts' => [['text' => llm_system_prompt()]]],
-        'contents'          => [['role' => 'user', 'parts' => [['text' => $userText]]]],
+        'systemInstruction' => ['parts' => [['text' => $system]]],
+        'contents'          => [['role' => 'user', 'parts' => [['text' => $user]]]],
         'generationConfig'  => [
             'responseMimeType'   => 'application/json',
-            'responseJsonSchema' => llm_hint_schema(),
+            'responseJsonSchema' => $schema,
             'maxOutputTokens'    => 2048,
         ],
     ];
+}
+
+// The request body for a hint request (also printed by tools/try_hints.php --raw).
+function llm_request_body(string $word, ?string $feedback = null): array {
+    return llm_json_body(llm_system_prompt(), llm_hint_user_text($word, $feedback), llm_hint_schema());
 }
 
 // POST a body to the model. Returns
@@ -149,35 +161,48 @@ function llm_http_error(array $res): string {
 //     'raw' => decoded hint JSON from the model (or null),
 //     'model' => model version that answered, 'usage' => token counts ]
 function llm_generate_hints(string $word, ?string $feedback = null): array {
-    $fail = fn(string $msg) => ['ok' => false, 'error' => $msg, 'raw' => null, 'model' => HINTS_MODEL, 'usage' => null];
+    return llm_json(llm_system_prompt(), llm_hint_user_text($word, $feedback), llm_hint_schema());
+}
+
+// Send one prompt and get back JSON matching $schema. Same return shape
+// as llm_generate_hints(), plus 'status' (the HTTP code, 0 if the
+// service was unreachable). Also used by the offline eval (tools/).
+function llm_json(string $system, string $user, array $schema): array {
+    $fail = fn(string $msg, int $status = 0) => ['ok' => false, 'error' => $msg, 'raw' => null,
+        'model' => HINTS_MODEL, 'usage' => null, 'status' => $status];
 
     if (!hints_enabled()) {
         return $fail('AI hints are switched off: no API key is configured.');
     }
 
-    $body = llm_request_body($word, $feedback);
+    $body = llm_json_body($system, $user, $schema);
     $res  = llm_send($body);
 
-    // Temporary problems on the provider's side (overloaded, timed
-    // out) usually clear within a second, so try once more.
-    if ($res['status'] === 0 || $res['status'] >= 500) {
-        sleep(1);
+    // Temporary problems on the provider's side (overloaded, timed out)
+    // usually clear within seconds, so retry twice, waiting a little
+    // longer each time ("backoff"). The eval showed the free tier
+    // failing about 1 request in 7 with a single retry.
+    foreach (LLM_RETRY_DELAYS as $delay) {
+        if ($res['status'] !== 0 && $res['status'] < 500) {
+            break;
+        }
+        sleep($delay);
         $res = llm_send($body);
     }
 
     if ($res['status'] !== 200 || !is_array($res['json'])) {
-        return $fail(llm_http_error($res));
+        return $fail(llm_http_error($res), $res['status']);
     }
 
     $data = $res['json'];
     if (!empty($data['promptFeedback']['blockReason'])) {
-        return $fail('The AI service declined to write hints for this word.');
+        return $fail('The AI service declined this request.', 200);
     }
 
     $candidate = $data['candidates'][0] ?? null;
     $finish    = $candidate['finishReason'] ?? '';
     if (!$candidate || $finish !== 'STOP') {
-        return $fail('The AI reply was cut off or blocked' . ($finish !== '' ? " ($finish)" : '') . '. Try again.');
+        return $fail('The AI reply was cut off or blocked' . ($finish !== '' ? " ($finish)" : '') . '. Try again.', 200);
     }
 
     // Join the answer's text parts, skipping any "thought" parts.
@@ -188,17 +213,18 @@ function llm_generate_hints(string $word, ?string $feedback = null): array {
         }
     }
 
-    $hints = json_decode($text, true);
-    if (!is_array($hints)) {
-        return $fail('The AI reply was not valid JSON. Try again.');
+    $reply = json_decode($text, true);
+    if (!is_array($reply)) {
+        return $fail('The AI reply was not valid JSON. Try again.', 200);
     }
 
     return [
         'ok'    => true,
         'error' => null,
-        'raw'   => $hints,
+        'raw'   => $reply,
         'model' => $data['modelVersion'] ?? HINTS_MODEL,
         'usage' => $data['usageMetadata'] ?? null,
+        'status' => 200,
     ];
 }
 ?>

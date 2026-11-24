@@ -63,7 +63,12 @@ if ($word === false) {
     exit;
 }
 
+// The AI call takes a few seconds. Release the session while it runs,
+// so the teacher's other requests (like refreshing the table) don't
+// wait behind it, then reopen it to keep the draft.
+session_write_close();
 $draft = generate_hint_draft($word);
+session_start();
 
 if (!$draft['hints']) {
     $status = in_array($draft['code'], ['unrecognized', 'invalid_word'], true) ? 422 : 502;
