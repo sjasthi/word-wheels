@@ -1,0 +1,2 @@
+# Real API keys and server-specific settings. Copy api/config.example.php.
+api/config.local.php
