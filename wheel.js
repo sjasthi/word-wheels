@@ -231,6 +231,26 @@ window.WordWheel = (function () {
     );
   }
 
+  // API row → puzzle to draw or play. Uses the saved layout when it's
+  // valid; puzzles saved before layouts were stored get a fresh random
+  // layout instead of failing. Returns null only when the row has no
+  // usable letters. (Used by the player page, Manage and Calendar.)
+  function playableFromApi(p) {
+    const saved = puzzleFromApi(p);
+    if (saved) return saved;
+    if (!p || !Array.isArray(p.arrangement) || p.arrangement.length < 3) return null;
+    const centralCharacter = !!p.center_letter;
+    return buildPuzzle({
+      chars: p.arrangement,
+      direction: DIRECTIONS.includes(p.direction) ? p.direction : "cw",
+      centralCharacter,
+      hiddenCount: Math.min(
+        Math.max(0, parseInt(p.hidden_count, 10) || 0),
+        maxHidden(p.arrangement.length, centralCharacter),
+      ),
+    });
+  }
+
   // Puzzle → JSON body for api/save_puzzle.php, including the wheel
   // layout so loading it later shows the same wheel. Blank name = unnamed.
   function puzzleToApi(puzzle, name) {
@@ -284,14 +304,20 @@ window.WordWheel = (function () {
 
   // Draw a puzzle into a .wheel container (jQuery object). Replaces
   // whatever the container held, so it can be called again to redraw.
+  // The SVG has a face (the filled circle) and, in .wheel-lines, the
+  // ring and spokes. wheel.css draws the ring on the face; the player
+  // page (theme.css) draws it with the crayon lines instead, which is why
+  // the extra ring circles are there (hidden by default).
   function renderWheel(puzzle, $wheel) {
-    let svg = `<circle cx="50" cy="50" r="${RING_RADIUS}"></circle>`;
+    let lines =
+      `<circle class="wheel-ring" cx="50" cy="50" r="${RING_RADIUS}"></circle>` +
+      `<circle class="wheel-ring-accent" cx="50.4" cy="49.6" r="${RING_RADIUS - 0.8}"></circle>`;
     const tiles = [];
 
     puzzle.chars.forEach((ch, i) => {
       const { x, y } = tilePosition(puzzle, i);
       if (puzzle.centralCharacter && i > 0) {
-        svg += `<line x1="50" y1="50" x2="${x}" y2="${y}"></line>`;
+        lines += `<line x1="50" y1="50" x2="${x}" y2="${y}"></line>`;
       }
 
       const isHidden = puzzle.hidden.has(i) && !puzzle.solved;
@@ -306,7 +332,11 @@ window.WordWheel = (function () {
     });
 
     $wheel
-      .html(`<svg viewBox="0 0 100 100" aria-hidden="true">${svg}</svg>`)
+      .html(
+        `<svg viewBox="0 0 100 100" aria-hidden="true">` +
+          `<circle class="wheel-face" cx="50" cy="50" r="${RING_RADIUS}"></circle>` +
+          `<g class="wheel-lines">${lines}</g></svg>`,
+      )
       .append(tiles);
   }
 
@@ -323,6 +353,7 @@ window.WordWheel = (function () {
     buildPuzzle,
     restorePuzzle,
     puzzleFromApi,
+    playableFromApi,
     puzzleToApi,
     apiError,
     tilePosition,

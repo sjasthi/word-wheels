@@ -30,10 +30,10 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
   - Saved list shows each puzzle's name, word, and a readable save date/time; the list refreshes and highlights the puzzle after saving
   - Loading a puzzle shows the exact same wheel that was saved (same starting position, letter order, and hidden letters)
   - Loading a puzzle also fills the **Create a puzzle** form with its word and settings, so **Generate wheel** recreates it with a fresh layout
-- Tabbed admin dashboard: **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (filters, sortable columns, wheel preview, scheduling, and bulk schedule/unschedule/print/delete). The open tab is kept in the URL, so a refresh returns to it, and the Manage table updates by itself after puzzles are saved.
+- Tabbed admin dashboard: **Calendar** (the teacher's home: a month view of daily puzzles with a pop-up to add, remove, and move puzzles on a day), **Create Puzzle**, **Batch Generate**, and **Manage Puzzles** (filters, sortable columns, wheel preview, scheduling, and bulk schedule/unschedule/print/delete). The open tab is kept in the URL, so a refresh returns to it, and the Manage table updates by itself after puzzles are saved. The logo always goes to the game; on the dashboard a **Player view** button does the same.
 - No draft/published status: every saved puzzle is live. Scheduled for today = a daily puzzle; scheduled later = hidden until that day; unscheduled or past = in the free play pool. Delete puzzles you don't want.
 - **Site-wide branding ("Sunny Playground"):** the same top bar on every page (crayon-style Word Wheel logo linking home, plus **Teacher login**, or **Dashboard · Log out** for a logged-in teacher) and the same footer (logo, credits, main links). Colors, font (Baloo 2) and shapes live in `theme.css`; the header and footer live in `partials/layout.php`. Favicon and phone home-screen icon in `assets/`.
-- **Player page (`index.php`, the site root)** with three independent tabs, each with its own address (`#today`, `#free`, `#sandbox`): **Today's Puzzle** (several per day, with numbered pills to move between them, and a daily streak kept in the player's browser), **Free Play** (unscheduled and past puzzles, always open), and **Sandbox**
+- **Player page (`index.php`, the site root)** with three independent tabs, each with its own address (`#today`, `#free`, `#sandbox`): **Daily** (several per day, with numbered pills to move between them, and a daily streak kept in the player's browser), **Free Play** (unscheduled and past puzzles, always open), and **Sandbox**
 - Mobile-friendly: tabs, buttons and inputs are at least 44px tall, and every page fits a 360px-wide phone without sideways scrolling
 - **Batch Generate** (admin only) — import a `.txt` file, filter words by length (any range within 3–12), generate up to 100 wheels with the same or varied settings, pick which ones to keep, and print or save them to the database
 - Short words and hidden letters: Batch Generate and Sandbox disable hidden-letter choices the shortest word can't support and explain why, and the save API rejects a puzzle that hides too many letters (at least one ring letter always stays visible)
@@ -42,7 +42,7 @@ This is an active capstone project. Admins create, save, schedule, and mass-gene
 - Printing (browser print / Save as PDF) from Batch Generate or Manage Puzzles, with 1–8 puzzles per page and a solutions page at the end
 - Players can print the puzzle on screen (daily, free play, or Sandbox): just the wheel and an answer line, no solution
 - One shared puzzle engine (`wheel.js` / `wheel.css`) used by every page, so a saved wheel looks the same everywhere: dashboard, preview, printout, and player page
-- **AI hints** (English): in Manage Puzzles a teacher generates two hints with an LLM (Google Gemini), edits them, and approves them; players get a **💡 Hint** button (a short clue first, then a kid-friendly definition) and a "What it means" note after solving or revealing. Nothing reaches players without a teacher's approval. See [AI Hints](#ai-hints).
+- **AI hints** (English): in Manage Puzzles or the Calendar pop-up (one shared editor, `admin/hint-editor.js`) a teacher generates two hints with an LLM (Google Gemini), edits them, and approves them; players get a **💡 Hint** button (a short clue first, then a kid-friendly definition) and a "What it means" note after solving or revealing. Nothing reaches players without a teacher's approval. See [AI Hints](#ai-hints).
 
 ### Not yet implemented
 - Player progress on the server or tied to an account (streaks and solved/revealed status live in the browser for now)
@@ -99,7 +99,17 @@ For AI hints on the server: run `sql/migrate_add_hints.sql` first, then create `
 
 ## How to Use
 
-### Admin dashboard — Create Puzzle tab (`admin/dashboard.php`)
+### Admin dashboard — Calendar tab (`admin/dashboard.php`, the default tab)
+
+1. The month view shows how many puzzles each day has and their words. Upcoming days with no puzzle have a dashed outline, today is outlined, and the bar at the top says how many of the next 7 days have a puzzle. Use **‹ ›** to change month and **Today** to come back.
+2. Click a day to open it. Past days are view-only.
+3. **Scheduled for this day** lists its puzzles; **✕ Remove** marks one for removal (**Undo** takes it back). Removed puzzles go back to free play.
+4. **Add puzzles**: search by name or word and tick puzzles to add. **Unscheduled only** lists free-play puzzles; **Show all** also lists puzzles on other days. A puzzle has one date, so ticking one from another day moves it here. This is also how a past puzzle is reused.
+5. Click a puzzle's line (not its checkbox) to see its wheel, its settings, and its hints, with the same hint editor as Manage Puzzles. One line is open at a time. Approved hints save right away.
+6. Nothing on the schedule changes until **Save changes**. Saving changes to today, or moving today's puzzle to another day, asks first because players see it at once. Closing with unsaved changes asks before discarding them.
+7. **Manage puzzles for this day →** opens Manage Puzzles filtered to that date.
+
+### Create Puzzle tab
 
 1. Enter a word between 7 and 9 letters in the **Configuration** panel
 2. Select a direction — random (the default), clockwise, or anticlockwise
@@ -123,15 +133,15 @@ For AI hints on the server: run `sql/migrate_add_hints.sql` first, then create `
 
 ### Manage Puzzles tab
 
-1. Filter by name/word, schedule status (unscheduled, today, upcoming, past), a specific scheduled date, language, and length; **More filters** adds hidden letters, center letter, and direction. Filters and sort are remembered in your browser.
+1. Filter by name/word, schedule status (unscheduled, today, upcoming, past), a specific scheduled date, hints (has hints / no hints), and length; **More filters** adds hidden letters, center letter, and direction. Filters and sort are remembered in your browser.
 2. Click a column header to sort by it; click again to reverse
 3. Click a row to preview its wheel, set or clear its scheduled date, print, or delete it. Give a puzzle today's date to make it a daily puzzle.
 4. Tick rows (the header checkbox ticks only the rows shown) to **Schedule** them on a date, **Unschedule**, **Print**, or **Delete** them in one step. Changes that affect today's daily puzzles ask first.
-5. **Hints for players** (in the expanded row): **Generate hints** asks the AI for a draft (nothing is saved yet). Edit either field if needed, then **Approve hints**. **Write hints yourself** skips the AI. Saved hints can be edited, regenerated, or removed. Hint 1 is a short clue (2–5 words) and hint 2 says what the word means; neither may contain the answer or a form of it. Rows with approved hints show a green **Hints** badge.
+5. **Hints for players** (in the expanded row): **Generate hints** asks the AI for a draft (nothing is saved yet). Edit either field if needed, then **Approve hints**. **Write hints yourself** skips the AI. Saved hints can be edited, regenerated, or removed. Hint 1 is a short clue (2–5 words) and hint 2 says what the word means; neither may contain the answer or a form of it. The **Hints** column shows ✓ for puzzles with approved hints.
 
 ### Player page (`index.php`, the site root)
 
-The tabs at the top switch between **Today's Puzzle**, **Free Play**, and **Sandbox**. The open tab is kept in the URL, so refreshing or sharing a link (e.g. `…/index.php#free`) opens the same tab. Each tab works on its own; nothing in one tab depends on another.
+The tabs at the top switch between **Daily**, **Free Play**, and **Sandbox**. The open tab is kept in the URL, so refreshing or sharing a link (e.g. `…/index.php#free`) opens the same tab. Each tab works on its own; nothing in one tab depends on another.
 
 
 1. **Daily puzzles:** today's scheduled puzzles. With more than one, use the numbered pills or ‹ › arrows to move between them. Type a guess and click **Check**, **Reveal** the answer, or **Skip** to the next unfinished puzzle. Solved and revealed puzzles are remembered in this browser, so a refresh can't undo a Reveal.

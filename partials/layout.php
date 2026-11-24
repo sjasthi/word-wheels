@@ -122,13 +122,17 @@ function ww_logo(): void {
 function ww_header(string $base, string $current = 'player'): void {
     $b = ww_e($base);
     $admin = ww_is_admin();
+    // The logo always goes to the game, on every page and for everyone.
+    $onDashboard = $current === 'dashboard';
     ?>
     <header class="ww-topbar">
       <div class="container ww-topbar-inner">
         <a class="ww-brand" href="<?= $b ?>index.php" title="<?= WW_SITE_NAME ?> home"><?php ww_logo(); ?></a>
         <nav class="ww-topbar-actions" aria-label="Account">
           <?php if ($admin): ?>
-            <?php if ($current !== 'dashboard'): ?>
+            <?php if ($onDashboard): ?>
+              <a class="btn btn-outline-primary" href="<?= $b ?>index.php">Player view</a>
+            <?php else: ?>
               <a class="btn btn-outline-primary" href="<?= $b ?>admin/dashboard.php">Dashboard</a>
             <?php endif; ?>
             <a class="btn btn-outline-secondary" href="<?= $b ?>admin/logout.php">Log out</a>
@@ -158,7 +162,7 @@ function ww_footer(string $base, string $current = ''): void {
           </div>
         </div>
         <nav aria-label="Footer">
-          <a href="<?= $home ?>#today">Today's Puzzle</a>
+          <a href="<?= $home ?>#today">Daily</a>
           <a href="<?= $home ?>#free">Free Play</a>
           <a href="<?= $home ?>#sandbox">Sandbox</a>
           <?php if (ww_is_admin()): ?>

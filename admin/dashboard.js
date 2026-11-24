@@ -206,17 +206,23 @@ $(function () {
   });
 
   // ── Tabs — remember the open tab across reloads ──────────
-  // The active tab is kept in the URL (#create, #batch, #manage), so a
-  // refresh reopens it and dashboard.php#manage links straight to it.
+  // The active tab is kept in the URL (#calendar, #create, #batch,
+  // #manage), so a refresh reopens it and dashboard.php#manage links
+  // straight to it. With no hash the Calendar (the teacher's home) opens.
   $("#adminTabs [data-tab-name]").on("shown.bs.tab", function () {
     history.replaceState(null, "", "#" + $(this).data("tab-name"));
   });
 
-  const startTab = location.hash.slice(1);
-  if (["create", "batch", "manage"].includes(startTab)) {
-    const startBtn = document.querySelector('#adminTabs [data-tab-name="' + startTab + '"]');
-    bootstrap.Tab.getOrCreateInstance(startBtn).show();
+  function showTabFromHash() {
+    const name = location.hash.slice(1);
+    if (!["calendar", "create", "batch", "manage"].includes(name)) return;
+    const btn = document.querySelector('#adminTabs [data-tab-name="' + name + '"]');
+    bootstrap.Tab.getOrCreateInstance(btn).show();
   }
+  showTabFromHash();
+  // A link to another tab's hash on this page (e.g. dashboard.php#manage)
+  // only changes the hash, so switch tabs without a reload.
+  window.addEventListener("hashchange", showTabFromHash);
 
   // ── Print modal — shared by manage tab and batch tab ──────
   // Takes built puzzles (puzzleFromApi / buildPuzzle, optional .name).
