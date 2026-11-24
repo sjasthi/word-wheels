@@ -2,7 +2,7 @@
 // Word Wheel — player page (index.php)
 // ============================================================
 // Three independent parts:
-//   1. Tabs       — Today's Puzzle / Free Play / Sandbox, kept in the
+//   1. Tabs       — Daily / Free Play / Sandbox, kept in the
 //                   URL hash (#today, #free, #sandbox)
 //   2. Daily      — today's scheduled puzzles, saved progress, streak
 //   3. Free play  — random puzzles, always available
@@ -11,26 +11,16 @@
 // ============================================================
 
 $(function () {
-  const { checkGuess, buildPuzzle, puzzleFromApi, renderWheel } = window.WordWheel;
+  const { checkGuess, playableFromApi, renderWheel } = window.WordWheel;
 
   // ==========================================================
   // Shared helpers
   // ==========================================================
 
-  // API row → playable puzzle. Puzzles saved before the layout
-  // migration have no saved layout, so they get a fresh one.
+  // API row → playable puzzle (shared fallback in wheel.js for puzzles
+  // saved before layouts were stored).
   function toPlayable(p) {
-    const saved = puzzleFromApi(p);
-    if (saved) return saved;
-    if (!p || !Array.isArray(p.arrangement) || p.arrangement.length < 3) return null;
-    const central = !!p.center_letter;
-    const ringSize = p.arrangement.length - (central ? 1 : 0);
-    return buildPuzzle({
-      chars: p.arrangement,
-      direction: ["cw", "ccw", "random"].includes(p.direction) ? p.direction : "cw",
-      centralCharacter: central,
-      hiddenCount: Math.max(0, Math.min(parseInt(p.hidden_count, 10) || 0, ringSize - 1)),
-    });
+    return playableFromApi(p);
   }
 
   function toItems(rows) {
@@ -78,6 +68,41 @@ $(function () {
     return $('<div class="alert py-2 mb-0"></div>').addClass("alert-" + type).text(message);
   }
 
+  // The "Correct!" celebration: a big handwritten headline with a few
+  // crayon confetti marks (theme.css), then the answer in plain text.
+  // answer is optional (the sandbox leaves it out).
+  const CONFETTI =
+    '<svg class="ww-correct-confetti" viewBox="0 0 300 70" aria-hidden="true"><g>' +
+    '<path d="M18 18 l10 6" stroke="#C8431F"></path>' +
+    '<path d="M32 50 l-8 8" stroke="#0F7B6C"></path>' +
+    '<path d="M12 38 q6 -4 10 2" stroke="#FFC93C"></path>' +
+    '<path d="M272 16 l-9 7" stroke="#0F7B6C"></path>' +
+    '<path d="M282 44 q-6 -4 -10 2" stroke="#C8431F"></path>' +
+    '<path d="M262 58 l9 6" stroke="#FFC93C"></path></g></svg>';
+
+  function correctBox(answer) {
+    const $box = $('<div class="ww-correct"></div>').append(
+      CONFETTI,
+      $('<p class="ww-correct-title">Correct!</p>'),
+    );
+    if (answer) {
+      $box.append(
+        $('<p class="ww-correct-text"></p>').append("The word is ", $("<strong></strong>").text(answer), "."),
+      );
+    }
+    return $box;
+  }
+  window.wwCorrectBox = correctBox; // sandbox.js uses it too
+
+  // Hand-drawn circle around a pill (two shapes so neighbours differ)
+  const PILL_RINGS = [
+    "M29 4 C45 3 55 15 54 29 C53 45 41 55 27 54 C12 53 3 42 4 28 C5 15 15 6 31 5",
+    "M28 5 C43 4 54 14 53 30 C52 44 42 54 28 53 C13 52 4 42 5 27 C6 13 17 5 32 6",
+  ];
+  function pillRing(i) {
+    return `<svg class="ww-pill-ring" viewBox="0 0 58 58" aria-hidden="true"><g><path d="${PILL_RINGS[i % 2]}"></path></g></svg>`;
+  }
+
   // One tab's loading / message / play sections, found by id prefix.
   function sections(prefix) {
     return {
@@ -92,6 +117,9 @@ $(function () {
       },
       result(type, text) {
         $("#" + prefix + "Result").html(alertBox(type, text));
+      },
+      correct(answer) {
+        $("#" + prefix + "Result").html(correctBox(answer));
       },
     };
   }
@@ -131,7 +159,7 @@ $(function () {
   $("#dailyPrintBtn, #freePrintBtn").on("click", function () { window.print(); });
 
   // ==========================================================
-  // 2. Today's Puzzle
+  // 2. Daily
   // ==========================================================
   const Daily = (function () {
     // Saved progress (this browser only):
@@ -248,8 +276,10 @@ $(function () {
                   : "btn-outline-primary",
             )
             .toggleClass("is-current", i === current)
+            .toggleClass("has-ring", status === "solved" || i === current)
             .attr({ "aria-label": label, "aria-current": i === current ? "step" : null })
             .text(status === "solved" ? "✓" : String(i + 1))
+            .append(status === "solved" || i === current ? pillRing(i) : null)
             .on("click", () => goTo(i)),
         );
       });
@@ -292,7 +322,7 @@ $(function () {
       renderHints("daily", item.hints, hintsShown[item.id] || 0, !!status);
 
       if (status === "solved") {
-        ui.result("success", `Correct! 🎉 The word is ${displayAnswer(item.puzzle)}.`);
+        ui.correct(displayAnswer(item.puzzle));
       } else if (status === "revealed") {
         ui.result("secondary", `Answer: ${displayAnswer(item.puzzle)}`);
       }
@@ -423,7 +453,7 @@ $(function () {
       renderHints("free", item.hints, state.hintsShown, !!status);
 
       if (status === "solved") {
-        ui.result("success", `Correct! 🎉 The word is ${displayAnswer(item.puzzle)}.`);
+        ui.correct(displayAnswer(item.puzzle));
       } else if (status === "revealed") {
         ui.result("secondary", `Answer: ${displayAnswer(item.puzzle)}`);
       }
@@ -512,7 +542,7 @@ $(function () {
   })();
 
   // ==========================================================
-  // Start: open the tab named in the URL, else Today's Puzzle
+  // Start: open the tab named in the URL, else Daily
   // ==========================================================
   const startName = location.hash.slice(1);
   if (TABS.includes(startName) && startName !== "today") {

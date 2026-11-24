@@ -81,6 +81,80 @@ require_once __DIR__ . '/../partials/layout.php';
         position: sticky; top: 0; z-index: 10;
         max-width: 480px; margin: 0 auto 0.75rem;
       }
+
+      /* ── Calendar tab ── */
+      .cal-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+      .cal-nav { width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 1.4rem; line-height: 1; }
+      .cal-month { min-width: 13ch; text-align: center; }
+      @media (max-width: 420px) { .cal-month { min-width: 0; font-size: 1.15rem; } .cal-nav { width: 40px; height: 40px; } }
+      .cal-summary { padding: 6px 14px; border-radius: 12px; background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); font-weight: 600; }
+      .cal-summary.is-covered { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+      .cal-legend { display: flex; gap: 14px; font-size: 0.85rem; color: var(--ww-muted); }
+      .cal-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+      .cal-key { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+      .cal-key-today { border: 2px solid var(--ww-coral); }
+      .cal-key-gap { border: 2px dashed var(--ww-coral); background: #FFF4EE; }
+      .cal-key-past { background: #F7F1E8; }
+      .cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+      .cal-weekdays { margin: 16px 0 8px; text-align: center; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ww-muted); }
+      .cal-grid > p { grid-column: 1 / -1; }
+      .cal-day {
+        min-height: 112px; padding: 8px 10px; border-radius: 12px; text-align: left;
+        display: flex; flex-direction: column; gap: 3px; overflow: hidden;
+        background: #fff; border: 1px solid var(--ww-line); color: var(--ww-ink); font: inherit;
+      }
+      .cal-day:hover { border-color: var(--ww-coral); }
+      .cal-day:focus-visible { outline: 3px solid rgba(200, 67, 31, 0.4); outline-offset: 2px; }
+      .cal-day-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+      .cal-day-num { font-weight: 800; font-size: 1.05rem; }
+      .cal-day-today { font-size: 0.75rem; font-weight: 700; color: #fff; background: var(--ww-coral); border-radius: 999px; padding: 0 8px; }
+      .cal-count { align-self: flex-start; font-size: 0.78rem; font-weight: 700; border-radius: 999px; padding: 0 8px; color: var(--bs-success-text-emphasis); background: var(--bs-success-bg-subtle); }
+      .cal-words { font-size: 0.85rem; line-height: 1.25; overflow-wrap: anywhere; }
+      .cal-day.is-today { border: 3px solid var(--ww-coral); padding: 6px 8px; }
+      .cal-day.is-past { background: #F7F1E8; border-color: #F7F1E8; color: #7A6654; }
+      .cal-day.is-past .cal-count { background: transparent; color: #7A6654; padding: 0; }
+      .cal-day.is-gap { background: #FFF4EE; border: 2px dashed var(--ww-coral); padding: 7px 9px; }
+      .cal-gap-text { font-size: 0.85rem; font-weight: 700; color: var(--bs-primary-text-emphasis); }
+      .cal-add { font-size: 0.85rem; font-weight: 700; color: var(--ww-coral); }
+      .cal-day.is-outside { opacity: 0.55; }
+      @media (max-width: 767.98px) {
+        .cal-day { min-height: 64px; padding: 6px; }
+        .cal-day.is-today, .cal-day.is-gap { padding: 4px; }
+        .cal-words, .cal-gap-text, .cal-add, .cal-day-today, .cal-day-month, .cal-count-label, .cal-count-none { display: none; }
+        .cal-count { font-size: 0.7rem; padding: 0 5px; }
+        .cal-legend { display: none; }
+      }
+
+      /* ── Calendar day pop-up ── */
+      .cal-list { border: 1px solid var(--ww-line); border-radius: 12px; overflow: hidden; }
+      .cal-row { border-bottom: 1px solid var(--ww-sand); background: #fff; }
+      .cal-row:last-child { border-bottom: 0; }
+      .cal-row.is-ticked { background: #FFF4EE; }
+      .cal-row.is-open { background: #FFFBF4; }
+      .cal-row.is-pending-add { background: #F2FAF8; }
+      .cal-row.is-pending-remove .cal-row-word { text-decoration: line-through; color: var(--ww-muted); }
+      .cal-row-head { display: flex; align-items: center; min-height: 48px; }
+      .cal-row-check { display: flex; align-items: center; justify-content: center; width: 48px; min-height: 48px; flex: 0 0 auto; margin: 0; cursor: pointer; }
+      .cal-row-check input { width: 20px; height: 20px; margin: 0; }
+      .cal-row-toggle {
+        flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+        min-height: 48px; padding: 6px 12px; border: 0; background: transparent; text-align: left; font: inherit; color: inherit;
+      }
+      .cal-row-check + .cal-row-toggle { padding-left: 0; }
+      .cal-row-word { font-weight: 800; min-width: 8ch; }
+      .cal-row-meta { font-size: 0.85rem; color: var(--ww-muted); flex: 1 1 auto; }
+      .cal-chip { font-size: 0.75rem; font-weight: 700; border-radius: 999px; padding: 1px 10px; background: var(--ww-sand); color: var(--ww-muted); white-space: nowrap; }
+      .cal-chip-hints { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+      .cal-chip-move { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+      .cal-chip-add { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); }
+      .cal-chip-remove { background: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis); }
+      .cal-caret { width: 1.2em; text-align: center; color: var(--ww-muted); }
+      .cal-row-action { margin-right: 10px; flex: 0 0 auto; }
+      /* align-items: flex-start keeps the wheel square when the hint form makes the row taller */
+      .cal-row-detail { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px 24px; padding: 4px 16px 16px 48px; }
+      .cal-row-detail .wheel { --wheel-size: 150px; flex: 0 0 auto; margin: 0; }
+      .cal-row-detail-info { flex: 1 1 260px; min-width: 0; }
+      @media (max-width: 575.98px) { .cal-row-detail { padding-left: 16px; } }
     </style>
 </head>
 <body class="ww-wide">
@@ -92,7 +166,12 @@ require_once __DIR__ . '/../partials/layout.php';
     <!-- ── Tabs ── -->
     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-create" data-tab-name="create"
+            <button class="nav-link active" id="tab-calendar" data-tab-name="calendar"
+                    data-bs-toggle="tab" data-bs-target="#pane-calendar"
+                    type="button" role="tab">Calendar</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-create" data-tab-name="create"
                     data-bs-toggle="tab" data-bs-target="#pane-create"
                     type="button" role="tab">Create Puzzle</button>
         </li>
@@ -111,9 +190,44 @@ require_once __DIR__ . '/../partials/layout.php';
     <div class="tab-content">
 
         <!-- ════════════════════════════════════════════════
-             TAB 1 — Create Puzzle
+             TAB — Calendar (the teacher's home: calendar.js)
              ════════════════════════════════════════════════ -->
-        <div class="tab-pane fade show active" id="pane-create" role="tabpanel">
+        <div class="tab-pane fade show active" id="pane-calendar" role="tabpanel">
+            <section class="card shadow-sm">
+                <div class="card-body">
+                    <div class="cal-toolbar">
+                        <div class="d-flex align-items-center gap-2">
+                            <button id="calPrevBtn" class="btn btn-outline-secondary cal-nav" type="button" aria-label="Previous month">‹</button>
+                            <h2 id="calMonthLabel" class="h4 mb-0 cal-month" aria-live="polite"></h2>
+                            <button id="calNextBtn" class="btn btn-outline-secondary cal-nav" type="button" aria-label="Next month">›</button>
+                            <button id="calTodayBtn" class="btn btn-outline-primary btn-sm ms-1" type="button">Today</button>
+                        </div>
+                        <p id="calSummary" class="cal-summary mb-0" aria-live="polite"></p>
+                        <div class="cal-legend" aria-hidden="true">
+                            <span><span class="cal-key cal-key-today"></span>Today</span>
+                            <span><span class="cal-key cal-key-gap"></span>No puzzle yet</span>
+                            <span><span class="cal-key cal-key-past"></span>Past (view only)</span>
+                        </div>
+                    </div>
+                    <div id="calStatus" class="mt-3" role="status" aria-live="polite"></div>
+                    <div class="cal-weekdays" aria-hidden="true">
+                        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                    </div>
+                    <div id="calGrid" class="cal-grid">
+                        <p class="text-muted my-4">Loading the calendar…</p>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">
+                        Click a day to see or change its puzzles.
+                        <a href="#" id="calManageAllLink">Manage all puzzles →</a>
+                    </p>
+                </div>
+            </section>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             TAB — Create Puzzle
+             ════════════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="pane-create" role="tabpanel">
             <div class="row g-4">
 
                 <!-- Config -->
@@ -393,9 +507,11 @@ require_once __DIR__ . '/../partials/layout.php';
                             <span id="filterDateHelp" class="visually-hidden">Shows only puzzles scheduled on this day. Clear it to show all dates.</span>
                         </div>
                         <div class="col-6 col-md-2 col-xl-1">
-                            <label for="filterLanguage" class="form-label">Language</label>
-                            <select id="filterLanguage" class="form-select form-select-sm">
-                                <option value="">All</option>
+                            <label for="filterHints" class="form-label">Hints</label>
+                            <select id="filterHints" class="form-select form-select-sm">
+                                <option value="">Any</option>
+                                <option value="yes">Has hints</option>
+                                <option value="no">No hints</option>
                             </select>
                         </div>
                         <div class="col-6 col-md-3 col-xl-2">
@@ -480,7 +596,7 @@ require_once __DIR__ . '/../partials/layout.php';
                                 <th class="sortable" data-sort="name">Name</th>
                                 <th class="sortable" data-sort="word">Word</th>
                                 <th class="sortable" data-sort="length">Length</th>
-                                <th class="sortable" data-sort="language">Language</th>
+                                <th class="sortable" data-sort="hints">Hints</th>
                                 <th class="sortable" data-sort="direction">Direction</th>
                                 <th class="sortable" data-sort="hidden">Hidden</th>
                                 <th class="sortable" data-sort="center">Center</th>
@@ -498,8 +614,6 @@ require_once __DIR__ . '/../partials/layout.php';
         </div><!-- /pane-manage -->
 
     </div><!-- /tab-content -->
-
-</div><!-- /container -->
 
 
 <!-- ── Print Settings Modal ── -->
@@ -529,6 +643,31 @@ require_once __DIR__ . '/../partials/layout.php';
             </div>
         </div>
     </div>
+</div>
+
+<!-- ── Calendar day pop-up (calendar.js fills it) ── -->
+<div class="modal fade" id="calDayModal" tabindex="-1" aria-labelledby="calDayTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title h4 mb-1" id="calDayTitle"></h2>
+                    <span id="calDayBadge" class="badge"></span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="calDayBody"></div>
+            <div class="modal-footer justify-content-between">
+                <a href="#" id="calDayManageLink" class="fw-semibold">Manage puzzles for this day →</a>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="calDayChanges" class="small text-muted"></span>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="calDayCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="calDaySaveBtn">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </main>
 
 <?php ww_footer('../'); ?>
@@ -538,7 +677,9 @@ require_once __DIR__ . '/../partials/layout.php';
 <script src="../wheel.js"></script>
 <script src="print.js"></script>
 <script src="dashboard.js"></script>
+<script src="hint-editor.js"></script>
 <script src="manage.js"></script>
+<script src="calendar.js"></script>
 <script src="batch.js"></script>
 </body>
 </html>
