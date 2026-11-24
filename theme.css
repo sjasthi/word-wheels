@@ -268,10 +268,12 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { font-weight: 800; }
   align-items: center;
   border-radius: var(--ww-radius-pill);
   padding: 0 16px;
+  white-space: nowrap;
 }
 @media (max-width: 400px) {
-  .ww-brand svg { height: 38px; }
-  .ww-topbar-actions .btn { padding: 0 12px; font-size: 0.95rem; }
+  .ww-brand svg { height: 34px; }
+  .ww-topbar-actions { gap: 6px; }
+  .ww-topbar-actions .btn { padding: 0 10px; font-size: 0.9rem; }
 }
 
 /* Wide pages (the dashboard): header and footer line up with the
@@ -354,6 +356,102 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { font-weight: 800; }
   font-weight: 700;
 }
 
+/* ---- Crayon touches (player page only) ----
+   Gochi Hand, the logo's handwriting, goes on a few big, short labels:
+   the tabs, the streak and the "Correct!" headline. Its z is hard to
+   read, so keep these labels free of z (the first tab is "Daily", not
+   "Today's Puzzle"). Letter tiles,
+   instructions, buttons and answers stay in Baloo 2 so they're easy to
+   read. The crayon texture is the #ww-crayon-line SVG filter in
+   index.php. */
+.ww-player {
+  --ww-hand: "Gochi Hand", "Comic Sans MS", cursive;
+}
+.ww-player .ww-tabs .nav-link {
+  font-family: var(--ww-hand);
+  font-weight: 400;
+  font-size: 1.4rem;
+  line-height: 1.1;
+}
+.ww-player .ww-streak {
+  font-family: var(--ww-hand);
+  font-weight: 400;
+  font-size: 1.3rem;
+  padding: 2px 16px;
+}
+
+/* Wheel drawn in crayon: white face, waxy ring and spokes */
+.ww-player .wheel svg .wheel-face { stroke: none; }
+.ww-player .wheel svg .wheel-lines { filter: url(#ww-crayon-line); }
+.ww-player .wheel svg .wheel-ring {
+  display: inline;
+  stroke: #E6C79A;
+  stroke-width: 2.2;
+}
+.ww-player .wheel svg .wheel-ring-accent {
+  display: inline;
+  stroke: var(--ww-sun);
+  stroke-width: 1.2;
+  opacity: 0.8;
+}
+.ww-player .wheel svg line {
+  stroke: #E6C79A;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+
+/* Hand-drawn circles around solved (teal) and current (yellow) pills */
+.ww-pill { position: relative; overflow: visible; }
+.ww-pill-ring {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: calc(100% + 14px);
+  height: calc(100% + 14px);
+  pointer-events: none;
+  overflow: visible;
+}
+.ww-pill-ring g { filter: url(#ww-crayon-line); }
+.ww-pill-ring path { fill: none; stroke: var(--ww-teal-ink); stroke-width: 3; stroke-linecap: round; }
+.ww-pill.is-current .ww-pill-ring path { stroke: var(--ww-sun); stroke-width: 4; }
+.ww-pill.has-ring.is-current { box-shadow: none; }
+
+/* "Correct!" celebration */
+.ww-correct {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 4px;
+}
+.ww-correct-title {
+  position: relative;
+  margin: 0;
+  font-family: var(--ww-hand);
+  font-size: 3rem;
+  line-height: 1.05;
+  color: var(--ww-teal-ink);
+}
+.ww-correct-text { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.ww-correct-confetti {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 300px;
+  height: 70px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ww-correct-confetti g { filter: url(#ww-crayon-line); }
+.ww-correct-confetti path { fill: none; stroke-width: 4; stroke-linecap: round; }
+@media (prefers-reduced-motion: no-preference) {
+  .ww-correct-title { animation: ww-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+  .ww-correct-confetti { animation: ww-fade 0.6s ease-out both; }
+}
+@keyframes ww-pop { from { transform: scale(0.6) rotate(-4deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ww-fade { from { opacity: 0; } to { opacity: 1; } }
+
 /* ---- AI hints: a numbered list, then a "what it means" note when finished ---- */
 .ww-hints:empty { display: none; }
 .ww-hint-list,
@@ -374,4 +472,10 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { font-weight: 800; }
   .ww-topbar, .ww-footer, .ww-tabs { display: none !important; }
   .card { border: 0 !important; box-shadow: none !important; }
   .ww-player .wheel { --wheel-size: 12cm; }
+  /* worksheets get the plain wheel */
+  .ww-player .wheel svg .wheel-face { stroke: var(--ww-wheel-ring); }
+  .ww-player .wheel svg .wheel-lines { filter: none; }
+  .ww-player .wheel svg .wheel-ring,
+  .ww-player .wheel svg .wheel-ring-accent { display: none; }
+  .ww-player .wheel svg line { stroke: var(--ww-wheel-ring); stroke-width: 0.6; }
 }

@@ -5,7 +5,7 @@
 // built from random words in the bank. Nothing is sent to the server;
 // the bank and settings are remembered in this browser only.
 // Its elements use sb-prefixed ids so they don't clash with the
-// Today's Puzzle and Free Play tabs on the same page.
+// Daily and Free Play tabs on the same page.
 // ============================================================
 
 $(function () {
@@ -275,7 +275,7 @@ $(function () {
     if (outcome === "empty") return showResult("warning", "Type your answer first.");
     if (outcome === "correct") {
       finishPuzzle();
-      showResult("success", "Correct! 🎉");
+      $("#sbResult").html(window.wwCorrectBox());
     } else {
       showResult("danger", "Not quite — try again.");
     }

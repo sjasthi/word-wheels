@@ -22,10 +22,16 @@
   width: 100%;
   height: 100%;
 }
-.wheel svg circle {
+.wheel svg .wheel-face {
   fill: var(--ww-wheel-face, #f8f9fa);
   stroke: var(--ww-wheel-ring, #adb5bd);
   stroke-width: 1;
+}
+/* Only the player page's crayon style (theme.css) draws these */
+.wheel svg .wheel-ring,
+.wheel svg .wheel-ring-accent {
+  display: none;
+  fill: none;
 }
 .wheel svg line {
   stroke: var(--ww-wheel-ring, #ced4da);

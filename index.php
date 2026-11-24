@@ -3,7 +3,7 @@
 // Word Wheel — player page (the site's home page)
 // ============================================================
 // Three tabs, each standing on its own:
-//   Today's Puzzle — the day's scheduled puzzles, progress and streak
+//   Daily          — the day's scheduled puzzles, progress and streak
 //                    (player.js, daily section)
 //   Free Play      — random past/unscheduled puzzles, always open
 //                    (player.js, free play section)
@@ -20,6 +20,18 @@ ww_is_admin(); // reads the session (if any) before output starts
   <?php ww_head(null, ''); ?>
 </head>
 <body class="ww-player">
+<!-- Crayon texture for the wheel lines, pill circles and confetti (theme.css) -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="ww-crayon-line" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="7" result="wobble"></feTurbulence>
+      <feDisplacementMap in="SourceGraphic" in2="wobble" scale="1.6" xChannelSelector="R" yChannelSelector="G" result="rough"></feDisplacementMap>
+      <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="1" seed="3" result="grain"></feTurbulence>
+      <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.9 1.5" result="wax"></feColorMatrix>
+      <feComposite in="rough" in2="wax" operator="in"></feComposite>
+    </filter>
+  </defs>
+</svg>
 <?php ww_header('', 'player'); ?>
 
 <main class="ww-main container py-4" style="max-width: 640px">
@@ -35,7 +47,7 @@ ww_is_admin(); // reads the session (if any) before output starts
       <button class="nav-link active" id="tab-today" data-tab-name="today"
               data-bs-toggle="tab" data-bs-target="#pane-today" type="button"
               role="tab" aria-controls="pane-today" aria-selected="true">
-        <span class="d-none d-sm-inline">Today's Puzzle</span><span class="d-sm-none">Today</span>
+        Daily
       </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -52,7 +64,7 @@ ww_is_admin(); // reads the session (if any) before output starts
 
   <div class="tab-content">
 
-    <!-- ══════════════ Today's Puzzle ══════════════ -->
+    <!-- ══════════════ Daily (tab #today) ══════════════ -->
     <section class="tab-pane fade show active" id="pane-today" role="tabpanel" aria-labelledby="tab-today" tabindex="0">
       <p id="streakRow" class="text-center mb-3 d-none d-print-none">
         <span id="streakBadge" class="ww-streak"></span>

@@ -3,7 +3,7 @@
 // ============================================================
 // Loads every puzzle from api/get_all.php and draws the table in the
 // browser, so it can:
-//   * filter (search, schedule status, scheduled date, language, length,
+//   * filter (search, schedule status, scheduled date, hints, length,
 //     + more filters)
 //   * sort by clicking a column header
 //   * refresh after saves in the Create / Batch tabs without a reload
@@ -11,10 +11,13 @@
 // Bulk actions go through api/bulk_update.php in one request, and only
 // ever apply to selected rows that are currently shown.
 // Filters and sort are remembered in this browser (localStorage).
+// The hint editor in an expanded row is the shared one (hint-editor.js).
+// The Calendar tab opens this tab filtered to one day with
+// window.ManageTab.showDate(date).
 // ============================================================
 
 $(function () {
-  const { toChars, buildPuzzle, puzzleFromApi, renderWheel, apiError } = window.WordWheel;
+  const { toChars, puzzleFromApi, playableFromApi, renderWheel, apiError } = window.WordWheel;
 
   const STORE_KEY = "wordwheel.admin.manage.v1";
   const DIRECTION_LABELS = { random: "Random", cw: "Clockwise", ccw: "Anticlockwise" };
@@ -22,14 +25,14 @@ $(function () {
   const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
 
   const DEFAULT_FILTERS = {
-    search: "", schedule: "", date: "", language: "", lengthMin: "", lengthMax: "",
+    search: "", schedule: "", date: "", hints: "", lengthMin: "", lengthMax: "",
     hidden: "", center: "", direction: "",
   };
   const MORE_FILTER_KEYS = ["hidden", "center", "direction"];
 
   // filter key → input element
   const FILTER_INPUTS = {
-    search: "#filterSearch", schedule: "#filterSchedule", date: "#filterDate", language: "#filterLanguage",
+    search: "#filterSearch", schedule: "#filterSchedule", date: "#filterDate", hints: "#filterHints",
     lengthMin: "#filterLengthMin", lengthMax: "#filterLengthMax",
     hidden: "#filterHidden", center: "#filterCenter", direction: "#filterDirection",
   };
@@ -41,9 +44,6 @@ $(function () {
   let request = null;        // in-flight get_all request
   const selected = new Set(); // ids of ticked rows (always a subset of shown rows)
   let hintsEnabled = false;  // the server has an AI key (get_all.php)
-  // Open hint editors, by puzzle id. Kept here, not in the page, so typed
-  // text survives re-renders: { hints: [{ type, text }], error, busy, fromAi }
-  const hintDrafts = new Map();
 
   let filters = { ...DEFAULT_FILTERS };
   let sort = { key: "created", dir: "desc" };
@@ -57,7 +57,7 @@ $(function () {
     name:      (a, b) => collator.compare(a.name || "", b.name || ""),
     word:      (a, b) => collator.compare(a.word, b.word),
     length:    (a, b) => a.length - b.length,
-    language:  (a, b) => collator.compare(a.language || "", b.language || ""),
+    hints:     (a, b) => Number(a.hints.length > 0) - Number(b.hints.length > 0),
     direction: (a, b) => collator.compare(DIRECTION_LABELS[a.direction] || "", DIRECTION_LABELS[b.direction] || ""),
     hidden:    (a, b) => a.hidden_count - b.hidden_count,
     center:    (a, b) => Number(a.center_letter) - Number(b.center_letter),
@@ -135,19 +135,10 @@ $(function () {
     );
   }
 
-  // API row → puzzle for drawing/printing. Rows saved before the layout
-  // migration get a fresh layout, the same as on the player page.
+  // API row → puzzle for drawing/printing (shared fallback in wheel.js
+  // for puzzles saved before layouts were stored).
   function toBuilt(p) {
-    const saved = puzzleFromApi(p);
-    if (saved) return saved;
-    if (!p || !Array.isArray(p.arrangement) || p.arrangement.length < 3) return null;
-    const ringSize = p.arrangement.length - (p.center_letter ? 1 : 0);
-    return buildPuzzle({
-      chars: p.arrangement,
-      direction: DIRECTION_LABELS[p.direction] ? p.direction : "cw",
-      centralCharacter: !!p.center_letter,
-      hiddenCount: Math.max(0, Math.min(p.hidden_count || 0, ringSize - 1)),
-    });
+    return playableFromApi(p);
   }
 
   function printableFrom(rows) {
@@ -174,7 +165,8 @@ $(function () {
       if (filters.schedule === "scheduled" ? state === "unscheduled" : state !== filters.schedule) return false;
     }
     if (filters.date && p.scheduled_date !== filters.date) return false;
-    if (filters.language && p.language !== filters.language) return false;
+    if (filters.hints === "yes" && !p.hints.length) return false;
+    if (filters.hints === "no" && p.hints.length) return false;
 
     const min = parseInt(filters.lengthMin, 10);
     const max = parseInt(filters.lengthMax, 10);
@@ -223,12 +215,11 @@ $(function () {
         p.name
           ? $("<td></td>").text(p.name)
           : $('<td><span class="fst-italic text-muted">Unnamed</span></td>'),
-        $("<td></td>").append(
-          $("<strong></strong>").text(p.word),
-          p.hints.length ? $('<span class="badge text-bg-success ms-2">Hints</span>') : null,
-        ),
+        $("<td></td>").append($("<strong></strong>").text(p.word)),
         $("<td></td>").text(p.length),
-        $("<td></td>").text((p.language || "").toUpperCase()),
+        p.hints.length
+          ? $('<td><span class="badge text-bg-success">✓ Hints</span></td>')
+          : $('<td class="text-muted" title="No hints yet">—</td>'),
         $("<td></td>").text(DIRECTION_LABELS[p.direction] || p.direction),
         $("<td></td>").text(p.hidden_count),
         $("<td></td>").text(p.center_letter ? "Yes" : "No"),
@@ -268,7 +259,7 @@ $(function () {
                   : $('<small class="text-muted"></small>').text("Unscheduled puzzles are in the free play pool."),
               ),
             ),
-            hintSection(p),
+            hintEditor.section(p),
             $('<div class="d-flex gap-2 flex-wrap"></div>').append(
               $('<button type="button" class="btn btn-sm btn-outline-primary print-one-btn">Print</button>')
                 .attr("data-id", p.id),
@@ -281,87 +272,19 @@ $(function () {
     );
   }
 
-  // ── Hints ──────────────────────────────────────────────────
-  // Players only see hints a teacher approved. Limits match
-  // api/hint_checks.php, which checks again on save.
-  const HINT_FIELDS = [
-    { type: "theme", label: "Hint 1: short clue", help: "2–5 words, vaguer than hint 2." },
-    { type: "definition", label: "Hint 2: what it means", help: "One kid-friendly sentence." },
-  ];
-  const HINT_MAX_CHARS = 150;
-
-  function copyHints(list) {
-    return HINT_FIELDS.map((f, i) => ({ type: f.type, text: (list && list[i] && list[i].text) || "" }));
-  }
-
-  function hintButton(cls, style, text, id) {
-    return $('<button type="button" class="btn btn-sm"></button>')
-      .addClass(cls + " btn-" + style)
-      .attr("data-id", id)
-      .text(text);
-  }
-
-  function hintSection(p) {
-    const draft = hintDrafts.get(p.id);
-    const $box = $('<div class="mb-3"></div>').append(
-      $('<div class="form-label small text-muted mb-1"></div>').text("Hints for players"),
-    );
-
-    if (draft) {
-      HINT_FIELDS.forEach(function (f, i) {
-        const inputId = `hint-${p.id}-${i}`;
-        $box.append(
-          $('<div class="mb-2"></div>').append(
-            $('<label class="form-label small mb-1"></label>').attr("for", inputId).text(f.label),
-            $('<input type="text" class="form-control form-control-sm hint-input">')
-              .attr({ id: inputId, maxlength: HINT_MAX_CHARS, "data-id": p.id, "data-index": i, "aria-describedby": inputId + "-help" })
-              .val(draft.hints[i].text)
-              .prop("disabled", draft.busy),
-            $('<div class="form-text"></div>').attr("id", inputId + "-help").text(f.help),
-          ),
-        );
-      });
-      if (draft.error) {
-        $box.append($('<div class="alert alert-warning py-2 small mb-2" role="alert"></div>').text(draft.error));
-      }
-      $box.append(
-        $('<div class="d-flex gap-2 flex-wrap align-items-center"></div>').append(
-          hintButton("hint-approve-btn", "primary", "Approve hints", p.id).prop("disabled", draft.busy),
-          hintsEnabled
-            ? hintButton("hint-generate-btn", "outline-secondary", draft.busy ? "Working…" : "Regenerate", p.id).prop("disabled", draft.busy)
-            : null,
-          hintButton("hint-cancel-btn", "link", "Cancel", p.id).prop("disabled", draft.busy),
-          draft.busy ? $('<span class="spinner-border spinner-border-sm text-muted" role="status" aria-label="Working"></span>') : null,
-        ),
-      );
-      return $box;
-    }
-
-    if (p.hints.length) {
-      $box.append(
-        $('<ol class="small ps-3 mb-2"></ol>').append(p.hints.map((h) => $("<li></li>").text(h.text))),
-        $('<div class="d-flex gap-2 flex-wrap"></div>').append(
-          hintButton("hint-edit-btn", "outline-secondary", "Edit", p.id),
-          hintsEnabled ? hintButton("hint-generate-btn", "outline-secondary", "Regenerate", p.id) : null,
-          hintButton("hint-remove-btn", "outline-danger", "Remove", p.id),
-        ),
-      );
-      return $box;
-    }
-
-    $box.append(
-      $('<p class="small text-muted mb-2"></p>').text(
-        hintsEnabled
-          ? "No hints yet, so players won't see a Hint button for this puzzle."
-          : "No hints yet. AI hints are off on this server (no API key), but you can write hints yourself.",
-      ),
-      $('<div class="d-flex gap-2 flex-wrap"></div>').append(
-        hintsEnabled ? hintButton("hint-generate-btn", "outline-primary", "Generate hints", p.id) : null,
-        hintButton("hint-write-btn", "outline-secondary", "Write hints yourself", p.id),
-      ),
-    );
-    return $box;
-  }
+  // ── Hints (shared editor, see hint-editor.js) ──────────────
+  const hintEditor = window.HintEditor.create({
+    root: "#manageBody",
+    idPrefix: "manage",
+    getPuzzle: byId,
+    isEnabled: () => hintsEnabled,
+    onChange: () => render(),
+    onSaved: function (p, message) {
+      showStatus("success", message);
+      refresh();
+    },
+    onMessage: showStatus,
+  });
 
   function messageRow(content) {
     return $("<tr></tr>").append(
@@ -428,14 +351,6 @@ $(function () {
       .prop("disabled", shown === 0);
   }
 
-  function renderLanguageOptions() {
-    const langs = [...new Set(puzzles.map((p) => p.language).filter(Boolean))].sort(collator.compare);
-    if (filters.language && !langs.includes(filters.language)) langs.push(filters.language);
-    const $select = $("#filterLanguage").empty().append('<option value="">All</option>');
-    langs.forEach((l) => $select.append($("<option></option>").val(l).text(l.toUpperCase())));
-    $select.val(filters.language);
-  }
-
   function renderMoreFilters() {
     const active = MORE_FILTER_KEYS.filter((k) => filters[k] !== "").length;
     $("#moreFilters").toggleClass("d-none", !moreOpen);
@@ -467,7 +382,6 @@ $(function () {
         }));
         const ids = new Set(puzzles.map((p) => p.id));
         [...selected].forEach((id) => { if (!ids.has(id)) selected.delete(id); });
-        renderLanguageOptions();
         render();
       })
       .fail(function (xhr, textStatus) {
@@ -489,6 +403,19 @@ $(function () {
 
   // Create and Batch call this after saving so new puzzles show up here
   window.refreshManage = refresh;
+
+  // The Calendar tab's "Manage puzzles for this day →": show only that
+  // day's puzzles (other filters cleared so nothing hides them).
+  window.ManageTab = {
+    showDate(date) {
+      filters = { ...DEFAULT_FILTERS, date };
+      writeFilterInputs();
+      savePrefs();
+      renderMoreFilters();
+      render();
+      bootstrap.Tab.getOrCreateInstance(document.getElementById("tab-manage")).show();
+    },
+  };
 
   // ── Server actions ─────────────────────────────────────────
   function bulk(action, ids, date) {
@@ -571,7 +498,7 @@ $(function () {
     sort = sort.key === key
       ? { key, dir: sort.dir === "asc" ? "desc" : "asc" }
       // text columns start A→Z; numbers and dates start biggest/newest first
-      : { key, dir: ["name", "word", "language", "direction"].includes(key) ? "asc" : "desc" };
+      : { key, dir: ["name", "word", "direction"].includes(key) ? "asc" : "desc" };
     savePrefs();
     render();
   }
@@ -674,118 +601,6 @@ $(function () {
         refresh();
       })
       .fail(function (xhr) { showStatus("danger", apiError(xhr, "Could not delete the puzzle.")); });
-  });
-
-  // ── Events: hints ──────────────────────────────────────────
-  function hintRequest(url, body) {
-    return $.ajax({
-      url: "../api/" + url,
-      method: "POST",
-      contentType: "application/json",
-      dataType: "json",
-      data: JSON.stringify(body),
-    });
-  }
-
-  function hintError(xhr, fallback) {
-    if (xhr.status === 403) return "Your admin session has expired. Log in again, then try once more.";
-    return apiError(xhr, fallback);
-  }
-
-  function openHintEditor(id, hints, fromAi) {
-    hintDrafts.set(id, { hints: copyHints(hints), error: null, busy: false, fromAi });
-    render();
-    $(`#hint-${id}-0`).trigger("focus");
-  }
-
-  $("#manageBody").on("click", ".hint-generate-btn", function () {
-    const id = $(this).data("id");
-    const p = byId(id);
-    if (!p) return;
-    const before = hintDrafts.get(id);
-    const draft = {
-      hints: copyHints(before ? before.hints : p.hints),
-      error: null,
-      busy: true,
-      fromAi: before ? before.fromAi : false,
-    };
-    hintDrafts.set(id, draft);
-    render();
-
-    hintRequest("generate_hints.php", { id })
-      .done(function (res) {
-        if (!res || !res.success) {
-          draft.error = (res && res.error) || "Could not write hints. Try again.";
-          return;
-        }
-        draft.hints = copyHints(res.hints);
-        draft.fromAi = true;
-        draft.error = res.ok ? null : res.error;
-      })
-      .fail(function (xhr) { draft.error = hintError(xhr, "Could not write hints. Try again."); })
-      .always(function () {
-        draft.busy = false;
-        if (hintDrafts.get(id) === draft) render();
-      });
-  });
-
-  $("#manageBody").on("click", ".hint-write-btn", function () {
-    openHintEditor($(this).data("id"), null, false);
-  });
-
-  $("#manageBody").on("click", ".hint-edit-btn", function () {
-    const p = byId($(this).data("id"));
-    if (p) openHintEditor(p.id, p.hints, false);
-  });
-
-  $("#manageBody").on("input", ".hint-input", function () {
-    const draft = hintDrafts.get($(this).data("id"));
-    if (draft) draft.hints[$(this).data("index")].text = this.value;
-  });
-
-  $("#manageBody").on("click", ".hint-cancel-btn", function () {
-    hintDrafts.delete($(this).data("id"));
-    render();
-  });
-
-  $("#manageBody").on("click", ".hint-approve-btn", function () {
-    const id = $(this).data("id");
-    const p = byId(id);
-    const draft = hintDrafts.get(id);
-    if (!p || !draft || draft.busy) return;
-    draft.busy = true;
-    draft.error = null;
-    render();
-
-    hintRequest("save_hints.php", { id, hints: draft.hints, use_draft: draft.fromAi })
-      .done(function (res) {
-        if (!res || !res.success) {
-          draft.busy = false;
-          draft.error = (res && res.error) || "Could not save the hints.";
-          return render();
-        }
-        hintDrafts.delete(id);
-        showStatus("success", `Hints saved for "${p.word}". Players will see a Hint button for it.`);
-        refresh();
-      })
-      .fail(function (xhr) {
-        draft.busy = false;
-        draft.error = hintError(xhr, "Could not save the hints.");
-        render();
-      });
-  });
-
-  $("#manageBody").on("click", ".hint-remove-btn", function () {
-    const p = byId($(this).data("id"));
-    if (!p) return;
-    if (!confirm(`Remove the hints for "${p.word}"? Players will no longer see a Hint button for it.`)) return;
-    hintRequest("save_hints.php", { id: p.id, hints: null })
-      .done(function (res) {
-        if (!res || !res.success) return showStatus("danger", (res && res.error) || "Could not remove the hints.");
-        showStatus("success", `Removed the hints for "${p.word}".`);
-        refresh();
-      })
-      .fail(function (xhr) { showStatus("danger", hintError(xhr, "Could not remove the hints.")); });
   });
 
   // ── Events: bulk toolbar ───────────────────────────────────
