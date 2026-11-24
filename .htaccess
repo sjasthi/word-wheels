@@ -10,3 +10,8 @@ DirectoryIndex index.php index.html
         Header set Cache-Control "no-cache"
     </FilesMatch>
 </IfModule>
+
+# Settings files hold API keys; never serve them, even as empty output.
+<FilesMatch "^config\.(local|example)\.php$">
+    Require all denied
+</FilesMatch>

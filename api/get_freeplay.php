@@ -46,7 +46,7 @@ try {
 
     $sql = "
         SELECT " . PLAYER_PUZZLE_COLUMNS . "
-        FROM puzzles
+        FROM " . PLAYER_PUZZLE_FROM . "
         WHERE (scheduled_date IS NULL OR scheduled_date < CURDATE())
     ";
     if ($exclude) {

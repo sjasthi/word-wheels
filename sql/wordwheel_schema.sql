@@ -48,6 +48,24 @@ CREATE TABLE puzzles (
 );
 
 -- ============================================================
+-- PUZZLE HINTS TABLE
+-- Teacher-approved hints for a puzzle. A row exists only after a
+-- teacher approves; puzzles without a row show no Hint button.
+-- Hints use the shared shape:
+--   [{"type":"theme","text":"..."}, {"type":"definition","text":"..."}]
+-- ============================================================
+CREATE TABLE puzzle_hints (
+    puzzle_id       INT          PRIMARY KEY,         -- one set of hints per puzzle
+    generated_hints JSON         NULL,                -- what the AI wrote, before teacher edits; NULL = written by hand
+    final_hints     JSON         NOT NULL,            -- what players see
+    prompt_version  VARCHAR(20)  NULL,                -- prompt that wrote generated_hints, e.g. 'v3'
+    model           VARCHAR(60)  NULL,                -- model that wrote generated_hints
+    created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+    approved_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,  -- last time a teacher approved these hints
+    FOREIGN KEY (puzzle_id) REFERENCES puzzles(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
 -- INDEXES
 -- Improves query performance for common operations
 -- ============================================================
