@@ -35,8 +35,38 @@ $(function () {
 
   function toItems(rows) {
     return (rows || [])
-      .map((p) => ({ id: p && p.id, puzzle: toPlayable(p) }))
+      .map((p) => ({ id: p && p.id, puzzle: toPlayable(p), hints: playerHints(p && p.hints) }))
       .filter((item) => item.id && item.puzzle);
+  }
+
+  // Teacher-approved hints from the API, in the order they're shown
+  function playerHints(list) {
+    return (Array.isArray(list) ? list : []).filter((h) => h && typeof h.text === "string" && h.text.trim());
+  }
+
+  // One tab's Hint button and hint list. `shown` = hints opened so far.
+  // Once the puzzle is finished, the list becomes a "what it means" note.
+  function renderHints(prefix, hints, shown, finished) {
+    const total = hints.length;
+    const $box = $("#" + prefix + "Hints").empty();
+    $("#" + prefix + "HintBtn")
+      .toggleClass("d-none", finished || !total || shown >= total)
+      .text(`💡 Hint ${Math.min(shown + 1, total)} of ${total}`);
+    if (!total) return;
+
+    if (finished) {
+      const meaning = hints.find((h) => h.type === "definition");
+      if (meaning) {
+        $box.append($('<p class="ww-meaning mb-0"></p>').append(
+          $("<strong></strong>").text("What it means: "),
+          document.createTextNode(meaning.text),
+        ));
+      }
+    } else if (shown) {
+      $box.append($('<ol class="ww-hint-list mb-0"></ol>').append(
+        hints.slice(0, shown).map((h) => $("<li></li>").text(h.text)),
+      ));
+    }
   }
 
   // Tiles are drawn in capitals, so show answers the same way
@@ -148,6 +178,7 @@ $(function () {
     let previousDate = null; // most recent earlier day with puzzles
     let puzzles = [];        // [{ id, puzzle }] in server order
     let current = 0;         // index into puzzles
+    const hintsShown = {};   // puzzle id → hints opened (this visit only)
 
     function statusOf(id) {
       const day = store.days[today];
@@ -258,6 +289,7 @@ $(function () {
 
       $("#dailyGuessInput, #dailyCheckBtn").prop("disabled", !!status);
       $("#dailyRevealBtn").toggleClass("d-none", !!status);
+      renderHints("daily", item.hints, hintsShown[item.id] || 0, !!status);
 
       if (status === "solved") {
         ui.result("success", `Correct! 🎉 The word is ${displayAnswer(item.puzzle)}.`);
@@ -330,6 +362,14 @@ $(function () {
       else ui.result("danger", "Not quite — try again.");
     });
 
+    $("#dailyHintBtn").on("click", function () {
+      const item = puzzles[current];
+      if (!item || statusOf(item.id)) return;
+      hintsShown[item.id] = Math.min((hintsShown[item.id] || 0) + 1, item.hints.length);
+      renderHints("daily", item.hints, hintsShown[item.id], false);
+      if ($(this).hasClass("d-none")) $("#dailyGuessInput").trigger("focus");
+    });
+
     // Reveal locks the puzzle: it's saved as "revealed", so a refresh
     // can't undo it and it never counts toward the streak.
     $("#dailyRevealBtn").on("click", function () {
@@ -358,6 +398,7 @@ $(function () {
       seen: new Set(),  // ids shown this visit (sent as ?exclude=)
       item: null,       // { id, puzzle } on screen
       status: null,     // null | "solved" | "revealed"
+      hintsShown: 0,    // hints opened for the puzzle on screen
       solvedCount: 0,
       notice: "",       // one-off message shown with the next puzzle
     };
@@ -379,6 +420,7 @@ $(function () {
 
       $("#freeGuessInput, #freeCheckBtn").prop("disabled", !!status);
       $("#freeRevealBtn").toggleClass("d-none", !!status);
+      renderHints("free", item.hints, state.hintsShown, !!status);
 
       if (status === "solved") {
         ui.result("success", `Correct! 🎉 The word is ${displayAnswer(item.puzzle)}.`);
@@ -397,6 +439,7 @@ $(function () {
     function show(item) {
       state.item = item;
       state.status = null;
+      state.hintsShown = 0;
       state.seen.add(item.id);
       $("#freeGuessInput").val("");
       $("#freeResult").empty();
@@ -450,6 +493,13 @@ $(function () {
       if (outcome === "empty") return ui.result("warning", "Type your answer first.");
       if (outcome === "correct") finish("solved");
       else ui.result("danger", "Not quite — try again.");
+    });
+
+    $("#freeHintBtn").on("click", function () {
+      if (!state.item || state.status) return;
+      state.hintsShown = Math.min(state.hintsShown + 1, state.item.hints.length);
+      renderHints("free", state.item.hints, state.hintsShown, false);
+      if ($(this).hasClass("d-none")) $("#freeGuessInput").trigger("focus");
     });
 
     $("#freeRevealBtn").on("click", function () {

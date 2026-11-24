@@ -12,6 +12,7 @@ require_once __DIR__ . '/hint_checks.php';
 
 // Returns
 //   [ 'ok'             => bool,
+//     'code'           => 'ok' | 'checks_failed' | 'unrecognized' | 'invalid_word' | 'service',
 //     'error'          => message for the teacher, or null,
 //     'hints'          => shared hint shape (empty on failure),
 //     'generated'      => the model's last JSON reply, as returned,
@@ -21,12 +22,13 @@ require_once __DIR__ . '/hint_checks.php';
 //     'usage'          => token counts for each attempt ]
 function generate_hint_draft(string $word): array {
     $draft = [
-        'ok' => false, 'error' => null, 'hints' => [], 'generated' => null,
+        'ok' => false, 'code' => 'service', 'error' => null, 'hints' => [], 'generated' => null,
         'model' => HINTS_MODEL, 'prompt_version' => HINT_PROMPT_VERSION,
         'attempts' => 0, 'usage' => [],
     ];
 
     if (!hint_word_is_valid($word)) {
+        $draft['code']  = 'invalid_word';
         $draft['error'] = 'Hints can only be written for words of '
             . HINT_WORD_MIN . '–' . HINT_WORD_MAX . ' letters.';
         return $draft;
@@ -50,10 +52,12 @@ function generate_hint_draft(string $word): array {
 
         if ($checked['ok']) {
             $draft['ok'] = true;
+            $draft['code'] = 'ok';
             $draft['error'] = null;
             return $draft;
         }
         if ($checked['recognized'] === false) {
+            $draft['code']  = 'unrecognized';
             $draft['error'] = "The AI didn't recognize this word, so it wrote no hints. "
                 . 'Check the spelling, or write the hints yourself.';
             return $draft;
@@ -64,6 +68,7 @@ function generate_hint_draft(string $word): array {
         $feedback = $draft['error'];
     }
 
+    $draft['code']  = 'checks_failed';
     $draft['error'] = 'The AI hints failed the checks twice: ' . $draft['error']
         . ' Edit them yourself or try again.';
     return $draft;

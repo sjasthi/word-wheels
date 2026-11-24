@@ -38,7 +38,7 @@ try {
     // same puzzle (the player's saved progress depends on it).
     $stmt = $pdo->prepare("
         SELECT " . PLAYER_PUZZLE_COLUMNS . "
-        FROM puzzles
+        FROM " . PLAYER_PUZZLE_FROM . "
         WHERE scheduled_date = ?
         ORDER BY id
     ");

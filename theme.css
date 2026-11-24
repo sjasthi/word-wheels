@@ -354,6 +354,20 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 { font-weight: 800; }
   font-weight: 700;
 }
 
+/* ---- AI hints: a numbered list, then a "what it means" note when finished ---- */
+.ww-hints:empty { display: none; }
+.ww-hint-list,
+.ww-meaning {
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: left;
+  background: var(--ww-sand);
+  border-radius: var(--ww-radius-sm);
+  padding: 10px 14px;
+}
+.ww-hint-list { padding-left: 2rem; }
+.ww-hint-list li + li { margin-top: 4px; }
+
 /* ---- Printing: just the title, the current wheel and an answer line ---- */
 @media print {
   body { background: #fff !important; display: block; min-height: 0; }

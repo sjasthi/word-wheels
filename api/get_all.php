@@ -10,8 +10,12 @@
 //            puzzles: [ { id, name, word, arrangement, direction,
 //                         hidden_count, center_letter, start_slot,
 //                         ring_order, hidden_indexes, language,
-//                         scheduled_date, created_date }, ... ] }
-//                                          // newest first
+//                         scheduled_date, created_date,
+//                         hints: [ { type, text }, ... ] }, ... ],
+//                                          // newest first; hints = approved
+//                                          // hints, [] when none
+//            hints_enabled: true | false } // false = no API key, so the
+//                                          // dashboard hides Generate hints
 //       or { success: false, error: <message> }
 //
 // Admin only: the rows include every answer. The dashboard's Manage
@@ -21,6 +25,8 @@
 
 require_once 'admin_only.php';
 require_once 'db.php';
+require_once 'llm.php';
+require_once 'hint_checks.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -37,8 +43,10 @@ try {
     $rows  = $pdo->query("
         SELECT id, name, word, arrangement, direction, hidden_count,
                center_letter, start_slot, ring_order, hidden_indexes,
-               language, scheduled_date, created_date
+               language, scheduled_date, created_date,
+               h.final_hints AS hints
         FROM puzzles
+        LEFT JOIN puzzle_hints h ON h.puzzle_id = puzzles.id
         ORDER BY created_date DESC, id DESC
     ")->fetchAll();
 
@@ -58,10 +66,16 @@ try {
             'language'       => $p['language'],
             'scheduled_date' => $p['scheduled_date'],
             'created_date'   => $p['created_date'],
+            'hints'          => stored_hints($p['hints']),
         ];
     }, $rows);
 
-    echo json_encode(['success' => true, 'today' => $today, 'puzzles' => $puzzles]);
+    echo json_encode([
+        'success'       => true,
+        'today'         => $today,
+        'puzzles'       => $puzzles,
+        'hints_enabled' => hints_enabled(),
+    ]);
 
 } catch (PDOException $e) {
     http_response_code(500);

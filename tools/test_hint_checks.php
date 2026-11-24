@@ -47,6 +47,8 @@ expect('leak: stem inside a longer word', hint_leaks_answer('A fisherman does th
 expect('leak: word inside a longer word', hint_leaks_answer('Kingfishing birds dive.', 'fishing'));
 expect('leak: doubled consonant stem', hint_leaks_answer('You run very fast.', 'running'));
 expect('leak: e-drop stem', hint_leaks_answer('What you do to bake a cake.', 'baking'));
+expect('leak: y to i (early → earlier)', hint_leaks_answer('Happening earlier than usual.', 'early'));
+expect('leak: y to i (happy → happiest)', hint_leaks_answer('The happiest day.', 'happy'));
 expect('leak: short word plural', hint_leaks_answer('Cats like to nap.', 'cat'));
 expect('no leak: clean theme', !hint_leaks_answer('Something you might do at a lake.', 'fishing'));
 expect('no leak: short word inside another word', !hint_leaks_answer('A category of pets.', 'cat'));

@@ -50,11 +50,16 @@ function hint_word_is_valid(string $word): bool {
 }
 
 // The answer plus simple English stems: "fishing" → "fish",
-// "running" → "run", "baking" → "bak", "bake". Used to catch hints
+// "running" → "run", "baking" → "bak", "bake", "early" → "earli". Used to catch hints
 // that give the answer away in another form.
 function hint_answer_forms(string $word): array {
     $word  = hint_lower($word);
     $forms = [$word];
+
+    // y → i before an ending: early → earlier, happy → happiest
+    if (mb_strlen($word) >= 4 && str_ends_with($word, 'y')) {
+        $forms[] = mb_substr($word, 0, -1) . 'i';
+    }
 
     foreach (['ing', 'ed', 'es', 'er', 'ly', 's'] as $suffix) {
         if (!str_ends_with($word, $suffix)) {
@@ -129,6 +134,22 @@ function check_hint_list($hints, string $word): array {
         }
     }
     return $errors;
+}
+
+// A puzzle_hints JSON column → the shared shape, or [] when there are
+// no hints (NULL) or the stored value isn't usable.
+function stored_hints(?string $json): array {
+    $hints = $json === null ? null : json_decode($json, true);
+    if (!is_array($hints)) {
+        return [];
+    }
+    $out = [];
+    foreach ($hints as $hint) {
+        if (is_array($hint) && is_string($hint['type'] ?? null) && is_string($hint['text'] ?? null)) {
+            $out[] = ['type' => $hint['type'], 'text' => $hint['text']];
+        }
+    }
+    return $out;
 }
 
 // LLM JSON → { ok, recognized, hints, errors }. The LLM returns

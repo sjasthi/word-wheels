@@ -95,12 +95,15 @@ ww_is_admin(); // reads the session (if any) before output starts
             </form>
 
             <div class="mt-3 d-flex flex-wrap gap-2 justify-content-center d-print-none">
+              <button id="dailyHintBtn" class="btn btn-outline-primary d-none" type="button">💡 Hint</button>
               <button id="dailyRevealBtn" class="btn btn-outline-secondary" type="button">Reveal</button>
               <button id="dailyPrintBtn" class="btn btn-outline-secondary" type="button">Print</button>
               <button id="dailyNextBtn" class="btn btn-outline-primary" type="button">Skip</button>
             </div>
 
             <div id="dailyResult" class="mt-3 d-print-none" role="status" aria-live="polite"></div>
+
+            <div id="dailyHints" class="ww-hints mt-3 d-print-none" aria-live="polite"></div>
 
             <!-- Shown once every daily puzzle is solved or revealed -->
             <div id="dailyDone" class="d-none d-print-none mt-4 pt-3 border-top">
@@ -147,12 +150,15 @@ ww_is_admin(); // reads the session (if any) before output starts
             </form>
 
             <div class="mt-3 d-flex flex-wrap gap-2 justify-content-center d-print-none">
+              <button id="freeHintBtn" class="btn btn-outline-primary d-none" type="button">💡 Hint</button>
               <button id="freeRevealBtn" class="btn btn-outline-secondary" type="button">Reveal</button>
               <button id="freePrintBtn" class="btn btn-outline-secondary" type="button">Print</button>
               <button id="freeNextBtn" class="btn btn-outline-primary" type="button">Skip</button>
             </div>
 
             <div id="freeResult" class="mt-3 d-print-none" role="status" aria-live="polite"></div>
+
+            <div id="freeHints" class="ww-hints mt-3 d-print-none" aria-live="polite"></div>
           </div>
         </div>
       </div>
