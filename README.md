@@ -2,6 +2,8 @@
 
 Word Wheel is a word puzzle game for the classroom. Each puzzle is a wheel of letters, and the goal is to find the word hidden in it. Teachers make the puzzles and pick which ones are the daily puzzles. Students play them on any computer, tablet or phone, with no account needed.
 
+<p align="center"><img src="docs/images/daily-done.png" width="440" alt="The Daily tab after finishing today's puzzles: a big handwritten Correct!, the answer, what the word means, and an All done for today summary with the streak"></p>
+
 This guide explains how to play and how to run the game as a teacher. To install or deploy the site, see the [developer notes](docs/developer.md).
 
 **Contents**
@@ -17,6 +19,13 @@ This guide explains how to play and how to run the game as a teacher. To install
 ## How to read a word wheel
 
 The letters of one word are placed around a circle. Find the word and type it in.
+
+<p align="center">
+  <img src="docs/images/wheel-hidden.png" width="200" alt="A clockwise wheel for SUNFLOWER: S in the yellow center, the other letters around the ring, and one letter shown as a dashed circle with a question mark">
+  &nbsp;&nbsp;
+  <img src="docs/images/wheel-solved.png" width="200" alt="The same wheel after solving: the hidden letter N now shows in teal">
+</p>
+<p align="center"><em>Left: a clockwise puzzle with the center letter S and one hidden letter. Right: the same wheel solved, with the hidden N in teal. Reading clockwise from U spells SUNFLOWER.</em></p>
 
 - **Center letter.** Some wheels have a letter in the yellow center. It is always the **first letter** of the word.
 - **Direction.** The rest of the letters sit around the ring. On a **clockwise** or **anticlockwise** wheel they spell the word in order going that way, but the starting letter isn't marked: finding it is part of the puzzle. On a **random** wheel the ring letters are scrambled, so you have to unscramble them.
@@ -34,6 +43,8 @@ The game has three tabs: **Daily**, **Free Play** and **Sandbox**. Each tab work
 
 The daily puzzles are the ones your teacher picked for today.
 
+<p align="center"><img src="docs/images/daily-play.png" width="440" alt="The Daily tab: two numbered puzzle circles with arrows, 0 of 2 puzzles completed today, a wheel, the answer box, and the Hint, Reveal, Print and Skip buttons"></p>
+
 - There may be one puzzle or several. With more than one, use the numbered circles or the **‹ ›** arrows to move between them. A line underneath shows how many you've finished (for example, "2 of 3 puzzles completed today").
 - Type your answer and press **Check**. You can keep guessing as many times as you like.
 - **Skip** moves to the next puzzle you haven't finished. You can come back to a skipped puzzle at any time.
@@ -44,6 +55,8 @@ The daily puzzles are the ones your teacher picked for today.
 ### Streaks
 
 Your streak counts the days in a row that you solved a daily puzzle.
+
+<p align="center"><img src="docs/images/tabs-streak.png" width="420" alt="The player tabs (Daily, Free Play, Sandbox) with a 2-day streak badge underneath"></p>
 
 - **Solve at least one daily puzzle without Reveal** to count the day. Solving more puzzles the same day doesn't add more.
 - Revealing a puzzle never counts, but it doesn't end your streak either. Solving another puzzle that day still counts.
@@ -66,6 +79,8 @@ Free Play is for practice. It's always open, even when there's no daily puzzle.
 
 Sandbox lets you make your own wheels from any list of words.
 
+<p align="center"><img src="docs/images/sandbox.png" width="440" alt="The Sandbox tab: a Word bank box with one word pasted in, and Settings for word length, direction, center letter and hidden letters, with a Generate wheel button"></p>
+
 **How to use it**
 
 1. Paste words into the **Word bank**: one per line, separated by commas, or a whole paragraph.
@@ -86,6 +101,8 @@ A word bank with one word makes a single custom puzzle, which is handy for makin
 ### Hints
 
 Some puzzles have a **💡 Hint** button. Your teacher has approved these hints, so they're safe and accurate.
+
+<p align="center"><img src="docs/images/daily-hints.png" width="440" alt="A daily puzzle with both hints showing under the buttons: 1. Apart or divided. 2. To keep two or more things away from each other."></p>
 
 - The first press shows a short clue. The second shows what the word means.
 - Using hints doesn't affect your streak.
@@ -132,6 +149,8 @@ There are no drafts: every saved puzzle is live somewhere.
 
 The Calendar is the teacher's home page: a month view of the daily puzzles.
 
+<p align="center"><img src="docs/images/calendar.png" width="720" alt="The Calendar tab for November 2026: past days greyed out, today outlined, upcoming days with dashed outlines saying No puzzle yet, and a summary saying 3 of the next 7 days are covered"></p>
+
 - Each day shows how many puzzles it has and their words. On phones, only the number shows.
 - **Today** has a thick outline. **Upcoming days with no puzzle** have a dashed outline and say "No puzzle yet". The bar at the top says how many of the next 7 days have a puzzle.
 - **‹ ›** changes the month and **Today** comes back to this month.
@@ -140,15 +159,17 @@ The Calendar is the teacher's home page: a month view of the daily puzzles.
 
 Click a day to open it.
 
+<p align="center"><img src="docs/images/calendar-day.png" width="600" alt="A day opened from the Calendar: a list of puzzles with checkboxes and free play labels; one line is expanded to show its wheel, its settings and the hint editor with Approve hints, Regenerate and Cancel; Save changes at the bottom"></p>
+
 1. **Scheduled for this day** lists its puzzles. **✕ Remove** marks a puzzle for removal, and **Undo** takes it back. Removed puzzles go to Free Play; they aren't deleted.
 2. **Add puzzles** lists puzzles you can add. Search by name or word, then tick the ones you want.
-   - **Unscheduled only** lists puzzles with no date.
-   - **Show all** also lists puzzles on other days. Ticking one of those **moves** it to this day, and its label warns you first ("would move"). This is how you reuse a past puzzle.
+    - **Unscheduled only** lists puzzles with no date.
+    - **Show all** also lists puzzles on other days. Ticking one of those **moves** it to this day, and its label warns you first ("would move"). This is how you reuse a past puzzle.
 3. Click a puzzle's line (not its checkbox) to preview its wheel and settings, and to see or edit its hints. One line opens at a time.
 4. Press **Save changes**. Nothing on the schedule changes until you do. The dashboard asks first before:
-   - changing **today**, because players see it right away;
-   - moving **today's** puzzle to another day;
-   - closing the day with unsaved changes.
+    - changing **today**, because players see it right away;
+    - moving **today's** puzzle to another day;
+    - closing the day with unsaved changes.
 5. **Manage puzzles for this day →** opens Manage Puzzles showing just that day's puzzles.
 
 **Limits:** past days open read-only; you can look but not change them. Hints are the exception: approving hints in the pop-up saves them immediately, separate from **Save changes**.
@@ -156,6 +177,8 @@ Click a day to open it.
 ### Create Puzzle
 
 Make one puzzle at a time and fine-tune it.
+
+<p align="center"><img src="docs/images/create-puzzle.png" width="720" alt="The Create Puzzle tab: the word sunflower with Clockwise, a center letter and 1 hidden letter chosen; the generated wheel in the middle; and the Save and Load panel with the name Plants #1"></p>
 
 1. Type a word of **7 to 9 letters** (letters only, no spaces).
 2. Choose the **direction** (random, clockwise or anticlockwise), whether to show a **center letter**, and how many letters to **hide** (0–3).
@@ -169,6 +192,8 @@ Words in other languages and scripts (Vietnamese, Japanese, Korean and more) wor
 ### Batch Generate
 
 Make up to 100 puzzles at once from a word list.
+
+<p align="center"><img src="docs/images/batch.png" width="720" alt="The Batch Generate tab: a .txt file imported with 18 words selected, settings on the right, Print and Save to database buttons, and the first generated puzzle below with an Include checkbox and New layout"></p>
 
 1. Choose a **.txt file**. Any text works: one word per line, a comma-separated list, or a passage from a book. Repeated words are listed once.
 2. Set the **word lengths** (anywhere from 3 to 12 letters). Words in range appear with checkboxes, and the first 100 are ticked.
@@ -188,6 +213,8 @@ Make up to 100 puzzles at once from a word list.
 
 A table of every saved puzzle.
 
+<p align="center"><img src="docs/images/manage.png" width="720" alt="The Manage Puzzles tab: filters at the top, a sortable table with a Hints column, and one row expanded to show its wheel, scheduled date, hint buttons, Print and Delete"></p>
+
 - **Filter** by name or word, schedule (unscheduled, today, upcoming, past), a specific date, hints (has hints or not) and length. **More filters** adds hidden letters, center letter and direction. **Reset filters** clears them all.
 - Click a **column header** to sort, and click again to reverse. Your filters and sorting are remembered in your browser.
 - **Click a row** to preview the wheel, set or clear its date, print it, delete it, or edit its hints.
@@ -199,7 +226,7 @@ A table of every saved puzzle.
 
 Hints are optional, and a puzzle has none until you approve some. Each puzzle has two:
 
-1. **A short clue** of up to 5 words, vaguer than the second hint.
+1. **A short clue** of 2 to 5 words, vaguer than the second hint.
 2. **What it means**: one kid-friendly sentence.
 
 You can work on hints from a puzzle's row in **Manage Puzzles** or from its line in the **Calendar** pop-up.
@@ -222,6 +249,8 @@ You can work on hints from a puzzle's row in **Manage Puzzles** or from its line
 
 **Print** in Batch Generate or Manage Puzzles makes a worksheet: choose **1 to 8 puzzles per page**, then print or save as PDF from the browser's print window. Each puzzle has a blank answer line, and the answers are on a separate page at the end, so you can remove it before handing out copies.
 
+<p align="center"><img src="docs/images/worksheet.png" width="480" alt="A printed worksheet page with four numbered puzzles, each with its wheel and a blank Answer line"></p>
+
 ---
 
 ## Limits at a glance
@@ -236,7 +265,7 @@ You can work on hints from a puzzle's row in **Manage Puzzles** or from its line
 | Puzzle name | Up to 100 characters (optional) |
 | Puzzles per day | No limit |
 | Puzzles per printed page | 1–8 |
-| Hints per puzzle | 2 (a short clue of up to 5 words, then a meaning); up to 150 characters each |
+| Hints per puzzle | 2 (a short clue of 2–5 words, then a meaning); up to 150 characters each |
 | AI hint language | English |
 
 ## Known limitations
