@@ -12,7 +12,7 @@
 //       or { success: false, error: <message> }
 // ============================================================
 
-session_start();
+require_once 'admin_only.php'; // teachers only: answers 403 otherwise
 require_once 'db.php';
 
 // Only accept POST requests

@@ -13,6 +13,7 @@ This guide explains how to play and how to run the game as a teacher. To install
 - [For teachers](#for-teachers): [Logging in](#logging-in) · [How scheduling works](#how-scheduling-works) · [Calendar](#calendar) · [Create Puzzle](#create-puzzle) · [Batch Generate](#batch-generate) · [Manage Puzzles](#manage-puzzles) · [Hints for players](#hints-for-players) · [Printing worksheets](#printing-worksheets)
 - [Limits at a glance](#limits-at-a-glance)
 - [Known limitations](#known-limitations)
+- [What's next](#whats-next)
 
 ---
 
@@ -276,6 +277,21 @@ You can work on hints from a puzzle's row in **Manage Puzzles** or from its line
 - **One word per puzzle.** Phrases with spaces aren't supported.
 - **The center letter is always the word's first letter.**
 - **Two people editing the same puzzle's hints at once:** the last one to approve wins, with no warning.
+
+## What's next
+
+Features we'd add with more time. The [developer notes](docs/developer.md#future-work) explain what each one would take.
+
+- **AI hints in more languages, starting with Telugu.** Today the AI drafts English hints only, because the check that stops a hint from giving away the answer understands English word forms (fish, fishing, fisherman). Each new language needs its own checks, prompts and test words, and is turned on only once our hint tests show good quality in that language. Hints written by hand already work in any language.
+- **AI-themed puzzle sets.** Pick a theme like "Animals" or "Space", the AI suggests fitting words, and the app builds wheels from them: Sandbox mode with an AI word list.
+- **Teachers have the final say on hints.** The "gives away the answer" check would warn instead of blocking, so a teacher can approve a hint the check flagged by mistake.
+- **Hints on printed puzzle sets.** Printing is a core feature, so worksheets could include each puzzle's clue, with the meanings in the answer key.
+- **Progress on any device.** A class code and nickname (no email or password) so streaks follow a student between devices.
+- **Answers checked on the server,** so they can't be found with the browser's developer tools.
+- **Splitting Chinese and Japanese text into words** in Batch Generate, so word lists in those languages don't need one word per line.
+- **More puzzle shapes:** phrases with spaces, and a center letter that isn't the first letter.
+- **A spelling warning** when a teacher's word isn't in a dictionary for its language.
+- **A screen-reader-friendly wheel.**
 
 ---
 
