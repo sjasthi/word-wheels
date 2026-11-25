@@ -26,6 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch();
 
             if ($user && password_verify($password, $user['password']) && $user['role'] === 'admin') {
+                // New session id at login, so an id set before login
+                // (session fixation) can't be reused to act as the teacher.
+                session_regenerate_id(true);
                 $_SESSION['admin']   = true;
                 $_SESSION['user_id'] = $user['id'];
                 header('Location: dashboard.php');

@@ -44,6 +44,10 @@ The root `.htaccess` tells Apache to make browsers revalidate `.html`, `.js`, an
 
 Upload every file that changed together; pages break if one shared file (for example `wheel.js`, `theme.css`, or `partials/layout.php`) is older than the pages that use it. `git diff --name-only <last-deployed-commit> HEAD` lists them. Never upload your local `api/db.php` over the server's copy: it holds the database credentials.
 
+"Today" (which puzzles are daily, upcoming or free play) is the database server's date, `CURDATE()`, so every player and the dashboard agree on it. On shared hosting that server's clock may be in another time zone, so daily puzzles change at the server's midnight, which may not be local midnight.
+
+After installing, change the admin password: `sql/wordwheel_schema.sql` creates the account with a well-known default (`ics499admin`), which is public in this repository. Store a new `password_hash()` value in the `users` table.
+
 The root `.htaccess` also makes `index.php` the home page. `index.html` and `sandbox.html` are only small forwarding pages for old links and can be deleted once nothing points at them.
 
 For AI hints on the server: run `sql/migrate_add_hints.sql` first, then create `api/config.local.php` on the server with the key (never upload a local copy). The hint code needs PHP 8.0 or newer with the cURL extension, and the server must be allowed to make outbound HTTPS requests to `generativelanguage.googleapis.com`. The `tools/` folder is for command-line use only and is blocked from the web by `tools/.htaccess`.
@@ -122,7 +126,6 @@ Hint 1 alone leads to the word much less often than both hints together, which i
 
 ## Technical limitations
 
-- The save API (`api/save_puzzle.php`) doesn't check the admin session yet (the list, load, update, delete, bulk and hint APIs do).
 - The player endpoints send each puzzle's letters in answer order, and its approved hints, so the browser can check guesses; both can be read from the network response.
 - Saved puzzles are always tagged with language `en` (there is no language picker).
 - Editing a puzzle's hints in two tabs or browsers at once: the last save wins, with no warning. In one browser, two drafts for the same puzzle can also make the "what the AI wrote" record show the newer draft. Fix if needed: a version check on save and draft ids.
@@ -130,15 +133,51 @@ Hint 1 alone leads to the word much less often than both hints together, which i
 
 ---
 
+## Future work
+
+What we'd do next, and what each would take.
+
+### AI hints in more languages
+
+The first language to add is Telugu. Today `api/hints.php` asks Gemini for English hints, and `api/hint_checks.php` guards them with English-specific rules. Supporting another language needs:
+
+1. **A language for each puzzle.** Puzzles are always saved as `en`. Bring back a language picker in Create Puzzle and Batch Generate, store it in `puzzles.language`, and offer **Generate hints** only for languages that have the pieces below.
+2. **Per-language "doesn't give away the answer" checks.** `hint_answer_forms()` knows English endings (-ing, -ed, plurals, y → i). Each language needs its own word forms; for example, Spanish plurals and verb endings, or Vietnamese, where words are written as separate syllables.
+3. **Word splitting for languages without spaces.** `hint_word_count()` and the token split in `hint_leaks_answer()` split on spaces, so a Chinese, Japanese or Thai sentence counts as one word: the 5-word clue limit never triggers, and a short answer in the middle of a sentence isn't caught. Server-side, PHP's `IntlBreakIterator::createWordInstance()` splits these the way `Intl.Segmenter` does in the browser.
+4. **Prompts per language.** Ask for the hints in the puzzle's language, with the same rules (no answer, a vague clue, then one kid-friendly sentence).
+5. **Test words per language.** Add word lists to `tools/eval_words.txt` (or one file per language) and rerun `tools/eval_hints.php` to measure pass rates. Turn a language on only once its results are good enough.
+
+Hints written by hand already work in any language: the checks that run on save count graphemes and compare normalized text, so they accept any script. They're just weaker for languages without spaces (point 3), so the teacher's review matters more there.
+
+### Other ideas
+
+| Feature | What it would take |
+|---|---|
+| AI-themed puzzle sets | A teacher or student picks a theme ("Animals", "Space"); a new endpoint asks the LLM for a list of fitting words, checks each one with the same letters-only and length rules, and hands the list to the Sandbox or Batch Generate word bank. Words aren't stored until a teacher saves puzzles, and the theme text needs the same care as hints (kid-appropriate, no personal data). |
+| Teachers can override the answer-leak check | `check_hint_list()` would return the "gives away the answer" result as a warning instead of an error. The hint editor shows it with an "Approve anyway" button, and `save_hints.php` accepts an override flag (recorded with the hints). The length and word-count rules stay hard limits. |
+| Hints on printed puzzle sets | An option in the print window to include each puzzle's approved hints: the clue under the wheel, and the meaning with the answer key. `admin/print.js` would read the hints `get_all.php` already returns. |
+| Check answers on the server | A `check_guess.php` endpoint that compares the guess and returns correct or wrong; hints fetched one at a time; the player page gets only the scrambled tiles. About a day, mostly in `player.js`. |
+| Progress on any device | A class code plus nickname (no email or password), a progress table keyed by class and nickname, save and load endpoints, and the streak logic moved to the server. Needs a privacy review first (FERPA, and COPPA for under-13s). |
+| Chinese/Japanese word lists in Batch Generate | Use `Intl.Segmenter` with `granularity: "word"` (the same API the wheel uses for letters) when splitting the imported text in `admin/batch.js`. |
+| Phrases with spaces | Decide how a space appears on the wheel (a gap tile or a separator), ignore spaces when checking guesses, and update the length and hidden-letter rules in `wheel.js`. |
+| Center letter other than the first | Store the center letter's position in a new column, and let the layout code use any position. |
+| Spelling warning | A word list or dictionary API per language; warn instead of block, since names and topic words won't be listed. |
+| Screen-reader-friendly wheel | Labels on the tiles and a text version of each wheel. Reading the ring in order would give clockwise puzzles away, so this needs its own design (for example, letters in alphabetical order plus the direction). |
+| Safer editing by two teachers | A version number on each puzzle; reject a save made from an out-of-date copy. |
+| Login protection | Throttle repeated failed logins and add CSRF tokens on admin requests. |
+| One word-length setting | Create Puzzle allows 7–9 letters while Batch Generate and Sandbox allow 3–12; one admin setting could control all three. |
+
+---
+
 ## Project roadmap
 
 | Iteration | Goal |
 |---|---|
-| FP3 (current) | Core puzzle engine, wheel display, configurations, guess validation |
+| FP3 | Core puzzle engine, wheel display, configurations, guess validation |
 | FP4 | Basic UI improvements and configuration refinements |
 | FP5 | Database layer — MySQL schema, puzzle persistence, admin interface |
 | FP6 | Daily puzzle feature; playable puzzle improvements |
 | FP7 | Batch processing (up to 100 words); multilanguage word pool groundwork |
 | FP8 | PDF export — puzzle book generation via PHP |
 | FP9 | Bluehost deployment; integration testing on live environment |
-| FP10 / Final | Polish, accessibility, documentation, final submission |
+| FP10 / Final (current) | Polish, accessibility, documentation, final submission |
