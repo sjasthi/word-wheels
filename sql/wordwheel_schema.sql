@@ -82,7 +82,7 @@ CREATE INDEX idx_created_by ON puzzles(created_by);
 -- User: admin, Pass: ics499admin
 -- ============================================================
 INSERT INTO users (username, password, role) VALUES (
-    'admin',
-    '$2y$10$QfiS8KktTg0sPrGgyfj/g.aBZP5l.gAQkVefRNdWfBsXwi6YDH386',
+    'xxx',
+    'yyy',
     'admin'
 );
